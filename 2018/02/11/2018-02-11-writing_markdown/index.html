@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 6.3.0">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.0/css/all.min.css" integrity="sha256-AbA177XfpSnFEvgpYu1jMygiLabzPCJCRIBtR5jGc0k=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"wiggleji.github.io","root":"/","images":"/images","scheme":"Muse","darkmode":false,"version":"8.13.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":{"enable":false,"style":null},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"prism":false,"i18n":{"placeholder":"Searching...","empty":"We didn't find any results for the search: ${query}","hits_time":"${hits} results found in ${time} ms","hits":"${hits} results found"}}</script><script src="/js/config.js"></script>
+
+    <meta name="description" content="Markdown 작성하기마크다운이란?Github, Github Pages에서 보는 README를 보면 모두 .md 또는 .markdown 파일명으로 써져 있는걸 알 수 있습니다. 주로 기술 블로그 포스팅이나 프로젝트에 대한 설명을 써놓는게 대부분인데 특수기호, 문자를 이용하여 매우 간단한 문법으로 웹에서 빠른 컨텐츠 작성이 가능하죠. Github 덕분이라">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Markdown 작성하기">
+<meta property="og:url" content="https://wiggleji.github.io/2018/02/11/2018-02-11-writing_markdown/index.html">
+<meta property="og:site_name" content="wiggleji&#39;s blog">
+<meta property="og:description" content="Markdown 작성하기마크다운이란?Github, Github Pages에서 보는 README를 보면 모두 .md 또는 .markdown 파일명으로 써져 있는걸 알 수 있습니다. 주로 기술 블로그 포스팅이나 프로젝트에 대한 설명을 써놓는게 대부분인데 특수기호, 문자를 이용하여 매우 간단한 문법으로 웹에서 빠른 컨텐츠 작성이 가능하죠. Github 덕분이라">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://wiggleji.github.io/images/post/2018-02-11/tensorflow.png">
+<meta property="og:image" content="https://wiggleji.github.io/images/post/2018-02-11/tensorflow_md.png">
+<meta property="og:image" content="https://wiggleji.github.io/%EA%B2%BD%EB%A1%9C/%EC%9D%B4%EB%AF%B8%EC%A7%80.jpg">
+<meta property="og:image" content="https://wiggleji.github.io/%EA%B2%BD%EB%A1%9C/%EC%9D%B4%EB%AF%B8%EC%A7%80.jpg">
+<meta property="og:image" content="https://wiggleji.github.io/images/post/2018-02-11/typora.gif">
+<meta property="og:image" content="https://wiggleji.github.io/images/post/2018-02-11/typora_about.png">
+<meta property="og:image" content="https://wiggleji.github.io/images/post/2018-02-11/typora_type.gif">
+<meta property="article:published_time" content="2018-02-11T14:45:02.000Z">
+<meta property="article:modified_time" content="2022-09-14T02:41:02.654Z">
+<meta property="article:author" content="wiggleji">
+<meta property="article:tag" content="Markdown">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://wiggleji.github.io/images/post/2018-02-11/tensorflow.png">
+
+
+<link rel="canonical" href="https://wiggleji.github.io/2018/02/11/2018-02-11-writing_markdown/">
+
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"en","comments":true,"permalink":"https://wiggleji.github.io/2018/02/11/2018-02-11-writing_markdown/","path":"2018/02/11/2018-02-11-writing_markdown/","title":"Markdown 작성하기"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>Markdown 작성하기 | wiggleji's blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar" role="button">
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">wiggleji's blog</p>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+
+
+
+</div>
+        
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#Markdown-%EC%9E%91%EC%84%B1%ED%95%98%EA%B8%B0"><span class="nav-number">1.</span> <span class="nav-text">Markdown 작성하기</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%EB%A7%88%ED%81%AC%EB%8B%A4%EC%9A%B4%EC%9D%B4%EB%9E%80"><span class="nav-number">1.1.</span> <span class="nav-text">마크다운이란?</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%EB%A7%88%ED%81%AC%EB%8B%A4%EC%9A%B4-%EB%AC%B8%EB%B2%95"><span class="nav-number">1.2.</span> <span class="nav-text">마크다운 문법</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#%EB%AC%B8%EB%8B%A8-%EA%B5%AC%EB%B6%84"><span class="nav-number">1.2.0.1.</span> <span class="nav-text">문단 구분</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%ED%97%A4%EB%8D%94-Headers"><span class="nav-number">1.2.0.2.</span> <span class="nav-text">헤더(Headers)</span></a></li></ol></li></ol></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%EB%AC%B8%EC%84%9C%EC%9D%98-%ED%81%B0-%EC%A0%9C%EB%AA%A9%EC%9E%85%EB%8B%88%EB%8B%A4"><span class="nav-number">2.</span> <span class="nav-text">문서의 큰 제목입니다</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%EB%AC%B8%EC%84%9C%EC%9D%98-%EC%9E%91%EC%9D%80-%EC%A0%9C%EB%AA%A9%EC%9E%85%EB%8B%88%EB%8B%A4"><span class="nav-number">2.1.</span> <span class="nav-text">문서의 작은 제목입니다</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#H1-%EC%A0%9C%EB%AA%A9"><span class="nav-number">3.</span> <span class="nav-text">H1 제목</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#H2-%EC%A0%9C%EB%AA%A9"><span class="nav-number">3.1.</span> <span class="nav-text">H2 제목</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#H3-%EC%A0%9C%EB%AA%A9"><span class="nav-number">3.1.1.</span> <span class="nav-text">H3 제목</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#H4-%EC%A0%9C%EB%AA%A9"><span class="nav-number">3.1.1.1.</span> <span class="nav-text">H4 제목</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#H5-%EC%A0%9C%EB%AA%A9"><span class="nav-number">3.1.1.1.1.</span> <span class="nav-text">H5 제목</span></a><ol class="nav-child"><li class="nav-item nav-level-6"><a class="nav-link" href="#H6-%EC%A0%9C%EB%AA%A9"><span class="nav-number">3.1.1.1.1.1.</span> <span class="nav-text">H6 제목</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#H7%EC%9D%80"><span class="nav-number">3.1.1.1.1.2.</span> <span class="nav-text"># H7은?</span></a></li></ol></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%EB%AC%B8%EB%8B%A8"><span class="nav-number">3.1.1.2.</span> <span class="nav-text">문단</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%EA%B0%95%EC%A1%B0"><span class="nav-number">3.1.1.3.</span> <span class="nav-text">강조</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%EA%B5%AC%EB%B6%84%EC%84%A0"><span class="nav-number">3.1.1.4.</span> <span class="nav-text">구분선</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%EB%AA%A9%EB%A1%9D"><span class="nav-number">3.1.1.5.</span> <span class="nav-text">목록</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%EC%BD%94%EB%93%9C"><span class="nav-number">3.1.1.6.</span> <span class="nav-text">코드</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#typora"><span class="nav-number">3.1.2.</span> <span class="nav-text">typora</span></a></li></ol></li></ol></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author site-overview-item animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">wiggleji</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap site-overview-item animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">18</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">10</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="sidebar-dimmer"></div>
+
+
+    </header>
+
+    
+  <div class="back-to-top" role="button" aria-label="Back to top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://wiggleji.github.io/2018/02/11/2018-02-11-writing_markdown/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="wiggleji">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="wiggleji's blog">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="Markdown 작성하기 | wiggleji's blog">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Markdown 작성하기
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">Posted on</span>
+
+      <time title="Created: 2018-02-11 23:45:02" itemprop="dateCreated datePublished" datetime="2018-02-11T23:45:02+09:00">2018-02-11</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">Edited on</span>
+      <time title="Modified: 2022-09-14 11:41:02" itemprop="dateModified" datetime="2022-09-14T11:41:02+09:00">2022-09-14</time>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+        <h1 id="Markdown-작성하기"><a href="#Markdown-작성하기" class="headerlink" title="Markdown 작성하기"></a>Markdown 작성하기</h1><h2 id="마크다운이란"><a href="#마크다운이란" class="headerlink" title="마크다운이란?"></a>마크다운이란?</h2><p>Github, Github Pages에서 보는 README를 보면 모두 <code>.md</code> 또는 <code>.markdown</code> 파일명으로 써져 있는걸 알 수 있습니다. 주로 기술 블로그 포스팅이나 프로젝트에 대한 설명을 써놓는게 대부분인데 특수기호, 문자를 이용하여 매우 간단한 문법으로 웹에서 빠른 컨텐츠 작성이 가능하죠. <del>Github 덕분이라 할수도..</del></p>
+<p><strong>Markdown</strong> 은 2004년 존 그루버에 의해 만들어 졌고, 플랫폼 상관없이 모든 에디터에서 작성이 가능합니다. 개발자들 사이에서 많이 쓰이는 Sublime Text, Atom, VSCode 같은 좋은 도구도 많지만 저는 <a target="_blank" rel="noopener" href="https://typora.io/"><strong>typora</strong></a> 를 적극! 추천합니다. (자세한 설명은 뒤에서 😀)</p>
+<br>
+
+
+
+<p>우선 장단점부터 설명하자면</p>
+<blockquote>
+<p><strong>장점</strong></p>
+<ol>
+<li>문법이 간결하다.</li>
+<li>텍스트 형태로 저장되기 때문에 용량이 적고 관리하기 용이하다.</li>
+<li>별도의 도구 없이 모든 에디터에서 작성가능하다.</li>
+<li>지원하는 프로그램과 플랫폼이 다양하다.</li>
+</ol>
+</blockquote>
+<blockquote>
+<p><strong>단점</strong></p>
+<ol>
+<li>표준이 지정되어 있지 않아 도구에 따라 변환방식이 달라 결과에 차이가 있다.</li>
+<li>HTML의 모든 마크업을 표현하는데 부족하다.</li>
+</ol>
+</blockquote>
+<br>
+
+
+
+<p>Github에서 오픈소스를 찾다보면, <code>README.md</code> 의 내용은 우리가 매일보는 HTML 웹페이지로 보입니다.</p>
+<img src="/images/post/2018-02-11/tensorflow.png">
+
+<p><em>이렇게 보이죠</em></p>
+<p>‘문서를 HTML로 작성했네?’라고 생각할 수 있지만, 창에 보이는 <code>Raw</code> 라는 버튼을 눌러보면</p>
+<img src="/images/post/2018-02-11/tensorflow_md.png">
+
+<p><em>생각한 것과 다르게 나오네요</em> 🤔</p>
+<p>이는 Github에서 마크다운으로 작성한 파일을 HTML로 자동 렌더링해주기 때문입니다.</p>
+<p>이 덕분에 빠르게 Repository에 대한 문서와 블로그 글과 같은 게시물을 빠르게 작성할 수 있는겁니다.</p>
+<p>이제, 마크다운 문법을 알아보도록 하죠.</p>
+<br>
+
+<br>
+
+<h2 id="마크다운-문법"><a href="#마크다운-문법" class="headerlink" title="마크다운 문법"></a>마크다운 문법</h2><h4 id="문단-구분"><a href="#문단-구분" class="headerlink" title="문단 구분"></a>문단 구분</h4><p>기본적으로 마크다운은 모든 문법에서 문단 사이의 빈줄(엔터 두번)으로 구분합니다.</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">문단 하나</span><br><span class="line"></span><br><span class="line">문단 둘</span><br></pre></td></tr></table></figure>
+
+
+
+<br>
+
+<br>
+
+
+
+<h4 id="헤더-Headers"><a href="#헤더-Headers" class="headerlink" title="헤더(Headers)"></a>헤더(Headers)</h4><p>헤더는 HTML에서 쓰는 <code>&lt;h1&gt;, &lt;h2&gt;, ..., &lt;h6&gt;</code> 와 같이 큰제목을 쓸 때 사용합니다.</p>
+<blockquote>
+<p>큰제목 | 작은 제목</p>
+</blockquote>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">문서의 큰 제목입니다</span><br><span class="line">=====================</span><br><span class="line"></span><br><span class="line">문서의 작은 제목입니다</span><br><span class="line">---------------------</span><br></pre></td></tr></table></figure>
+
+<h1 id="문서의-큰-제목입니다"><a href="#문서의-큰-제목입니다" class="headerlink" title="문서의 큰 제목입니다"></a>문서의 큰 제목입니다</h1><h2 id="문서의-작은-제목입니다"><a href="#문서의-작은-제목입니다" class="headerlink" title="문서의 작은 제목입니다"></a>문서의 작은 제목입니다</h2><p><br><br></p>
+<blockquote>
+<p>글머리</p>
+</blockquote>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"># H1 제목</span><br><span class="line">## H2 제목</span><br><span class="line">### H3 제목</span><br><span class="line">#### H4 제목</span><br><span class="line">##### H5 제목</span><br><span class="line">###### H6 제목</span><br></pre></td></tr></table></figure>
+
+<h1 id="H1-제목"><a href="#H1-제목" class="headerlink" title="H1 제목"></a>H1 제목</h1><h2 id="H2-제목"><a href="#H2-제목" class="headerlink" title="H2 제목"></a>H2 제목</h2><h3 id="H3-제목"><a href="#H3-제목" class="headerlink" title="H3 제목"></a>H3 제목</h3><h4 id="H4-제목"><a href="#H4-제목" class="headerlink" title="H4 제목"></a>H4 제목</h4><h5 id="H5-제목"><a href="#H5-제목" class="headerlink" title="H5 제목"></a>H5 제목</h5><h6 id="H6-제목"><a href="#H6-제목" class="headerlink" title="H6 제목"></a>H6 제목</h6><h6 id="H7은"><a href="#H7은" class="headerlink" title="# H7은?"></a># H7은?</h6><p><br><br></p>
+<h4 id="문단"><a href="#문단" class="headerlink" title="문단"></a>문단</h4><blockquote>
+<p>블럭인용구</p>
+</blockquote>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">&gt; 블럭인용</span><br><span class="line">&gt;&gt; 블럭 1</span><br><span class="line">&gt;&gt;&gt; - 내용 1-1</span><br><span class="line">&gt;&gt;&gt; - 내용 1-2</span><br><span class="line">&gt;&gt; 블럭 2</span><br><span class="line">&gt;&gt;&gt; 내용 2-1</span><br><span class="line">&gt;&gt;&gt; 내용 2-2</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>블럭인용</p>
+<blockquote>
+<p>블럭 1</p>
+<blockquote>
+<ul>
+<li>내용 1-1</li>
+<li>내용 1-2</li>
+</ul>
+</blockquote>
+<p>블럭 2</p>
+<blockquote>
+<p>내용 2-1</p>
+<p>내용 2-2</p>
+</blockquote>
+</blockquote>
+</blockquote>
+<br>
+
+<br>
+
+
+
+<h4 id="강조"><a href="#강조" class="headerlink" title="강조"></a>강조</h4><blockquote>
+<p>이탤릭체</p>
+</blockquote>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">*이탤릭체* 또는 _이탤릭체_</span><br></pre></td></tr></table></figure>
+
+<p><em>이탤릭체</em>  또는 <em>이탤릭체</em></p>
+<blockquote>
+<p>굵은 글씨</p>
+</blockquote>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">**굵은 글씨** 또는 __굵은 글씨__ 아니면 ***굵은 이탤릭체***</span><br></pre></td></tr></table></figure>
+
+<p><strong>굵은 글씨</strong> 또는 <strong>굵은 글씨</strong> 아니면 <em><strong>굵은 이탤릭체</strong></em></p>
+<blockquote>
+<p>밑줄</p>
+</blockquote>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">&lt;u&gt;밑줄&lt;/u&gt;</span><br></pre></td></tr></table></figure>
+
+<p><u>밑줄</u></p>
+<blockquote>
+<p>취소선</p>
+</blockquote>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">~~취소선~~</span><br></pre></td></tr></table></figure>
+
+<p><del>취소선</del></p>
+<h4 id="구분선"><a href="#구분선" class="headerlink" title="구분선"></a>구분선</h4><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">---</span><br><span class="line">- - -</span><br><span class="line">----------------</span><br><span class="line">* * *</span><br><span class="line">*****</span><br><span class="line">***</span><br><span class="line">가로선</span><br></pre></td></tr></table></figure>
+
+<hr>
+<hr>
+<hr>
+<hr>
+<hr>
+<hr>
+<p>가로선</p>
+<p><br><br></p>
+<h4 id="목록"><a href="#목록" class="headerlink" title="목록"></a>목록</h4><blockquote>
+<p>순서 목록(번호)</p>
+</blockquote>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">1. 첫번째 목록</span><br><span class="line">2. 두번째 목록</span><br><span class="line">3. 세번째 목록</span><br></pre></td></tr></table></figure>
+
+<ol>
+<li>첫번째 목록</li>
+<li>두번째 목록</li>
+<li>세번째 목록</li>
+</ol>
+<p>※ <strong>기본 내림차순으로 작성됩니다</strong></p>
+<br>
+
+
+
+<blockquote>
+<p>순서 없는 목록(글머리)</p>
+</blockquote>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">* 목록</span><br><span class="line">* 목록</span><br><span class="line">	* 내용</span><br><span class="line">	* 내용</span><br><span class="line">		* 본문</span><br><span class="line">			* 그 다음?</span><br><span class="line">- 목록</span><br><span class="line">- 목록</span><br><span class="line">	- 내용</span><br><span class="line">	- 내용</span><br><span class="line">		- 본문</span><br><span class="line">			- 그 다음?</span><br><span class="line">* 목록</span><br><span class="line">* 목록</span><br><span class="line">	- 내용</span><br><span class="line">		+ 본문</span><br><span class="line">	- 내용</span><br><span class="line">		+ 본문</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><p>목록</p>
+</li>
+<li><p>목록</p>
+<ul>
+<li>내용</li>
+<li>내용<ul>
+<li>본문<ul>
+<li>그 다음?</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p>목록</p>
+</li>
+<li><p>목록</p>
+<ul>
+<li>내용<ul>
+<li>본문</li>
+</ul>
+</li>
+<li>내용<ul>
+<li>본문</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p><br><br></p>
+<h4 id="코드"><a href="#코드" class="headerlink" title="코드"></a>코드</h4><blockquote>
+<p>코드 문맥, 블럭</p>
+</blockquote>
+<p>탭(Tab) 1개 또는 공백 4개를 사용합니다.</p>
+<p>문맥과 코드는 원하는 부분을 &#96; 3개를 앞 뒤에 붙여 줍니다.</p>
+<p>코드 같은 경우, 앞의 &#96;3개 뒤에 언어를 써주면 자동 syntax 처리가 됩니다.</p>
+<p><code>파일명 블럭</code> 또는 <code>변수명 블럭</code></p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">코드 블럭</span><br><span class="line">여러 줄 입력 가능</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>언어 별 코드</p>
+</blockquote>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">hola</span>():</span><br><span class="line">    <span class="built_in">print</span>(<span class="string">&quot;Hola!&quot;</span>)</span><br><span class="line">hola()</span><br><span class="line">​```</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line">&lt;br&gt;&lt;br&gt;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="comment">#### URL 링크</span></span><br><span class="line"></span><br><span class="line">&gt; 인라인(Inline) 링크</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+<p><a target="_blank" rel="noopener" href="https://google.com/" title="구글로 이동">Google 링크</a></p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line">[Google 링크](https://google.com)</span><br><span class="line"></span><br><span class="line">&gt; 자동링크</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+<p><a target="_blank" rel="noopener" href="https://roamgom.github.io/">https://roamgom.github.io/</a></p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line">&lt;https://roamgom.github.io/&gt;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line">&lt;br&gt;&lt;br&gt;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line">#### 이미지</span><br><span class="line"></span><br><span class="line">&gt; 이미지 링크</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+<p><img src="/%EA%B2%BD%EB%A1%9C/%EC%9D%B4%EB%AF%B8%EC%A7%80.jpg" alt="이미지 설명"></p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line">&lt;img src=&quot;/images/roamgom.jpg&quot;&gt;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line">&gt; 이미지 사이즈 조절</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+<img src="/경로/이미지.jpg" width="가로" height="세로">
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line">&lt;img src=&quot;/images/roamgom.jpg&quot; width=&quot;400&quot;&gt;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line">&lt;br&gt;&lt;br&gt;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line">#### 표(테이블)</span><br><span class="line"></span><br><span class="line">&gt;  표 만들기</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+| 1 | 2 | 3 | 4 | 5 |
+|---|---|---|---|---|
+| a | b | c | d | e |
+| f | g | h | i | j |
+| k | l | m | n | o |
+```
+
+<table>
+<thead>
+<tr>
+<th>1</th>
+<th>2</th>
+<th>3</th>
+<th>4</th>
+<th>5</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>a</td>
+<td>b</td>
+<td>c</td>
+<td>d</td>
+<td>e</td>
+</tr>
+<tr>
+<td>f</td>
+<td>g</td>
+<td>h</td>
+<td>i</td>
+<td>j</td>
+</tr>
+<tr>
+<td>k</td>
+<td>l</td>
+<td>m</td>
+<td>n</td>
+<td>o</td>
+</tr>
+</tbody></table>
+<p>테이블 생성하는데 시간이 많이 걸리네요.</p>
+<p><a target="_blank" rel="noopener" href="http://www.tablesgenerator.com/markdown_tables"><strong>이 사이트</strong></a> 를 사용하면 테이블을 생성할 수 있습니다. (상당히 어려워요)</p>
+<p><br><br></p>
+<hr>
+<p>제가 알고 있는 마크다운 문법은 이렇게 정리되네요. <del>상당하쥬?</del></p>
+<p>양은 많아 보이지만 막상 사용하다보면 충분히 적응할 수 있을거에요.</p>
+<p>자신이 배운 내용, 프로젝트에 대한 설명은 이제 마크다운 하나로 해결할 수 있습니다!!</p>
+<p>…</p>
+<br>
+
+<h3 id="typora"><a href="#typora" class="headerlink" title="typora"></a>typora</h3><p>앞서 추천한 <a target="_blank" rel="noopener" href="https://typora.io/"><strong>typora</strong></a> 입니다.</p>
+<img src="/images/post/2018-02-11/typora.gif">
+
+
+
+<p>typora 사이트에 들어가서 특징을 보면 매우 특이합니다.</p>
+<p>앞서 얘기한 기본 마크다운 문법 뿐 아니라, 수식, 도표 같은 형식도 지원해줍니다.</p>
+<img src="/images/post/2018-02-11/typora_about.png">
+
+
+
+<p>무엇보다 마음에 드는 부분은 마크다운 문서를 작성하면서 결과 화면을 같이 볼 수 있다는 점이네요.</p>
+<img src="/images/post/2018-02-11/typora_type.gif">
+
+<br>
+
+
+
+<p>자, 이렇게 마크다운에 대한 문법을 알아보았으니</p>
+<p>모두 깃헙 문서와 블로그 글을 쓰러 가시죠! 😎</p>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Markdown/" rel="tag"># Markdown</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2018/02/05/2018-02-05-python_3.6_description/" rel="prev" title="What's new in Python3.6">
+                  <i class="fa fa-chevron-left"></i> What's new in Python3.6
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2018/04/17/2018-04-17-htop/" rel="next" title="htop 사용하기">
+                  htop 사용하기 <i class="fa fa-chevron-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+
+<div class="copyright">
+  &copy; 
+  <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">wiggleji</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous"></script>
+<script src="/js/comments.js"></script><script src="/js/utils.js"></script><script src="/js/motion.js"></script><script src="/js/schemes/muse.js"></script><script src="/js/next-boot.js"></script>
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+</body>
+</html>

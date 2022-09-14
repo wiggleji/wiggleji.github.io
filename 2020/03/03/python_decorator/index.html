@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 6.3.0">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.0/css/all.min.css" integrity="sha256-AbA177XfpSnFEvgpYu1jMygiLabzPCJCRIBtR5jGc0k=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"wiggleji.github.io","root":"/","images":"/images","scheme":"Muse","darkmode":false,"version":"8.13.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":{"enable":false,"style":null},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"prism":false,"i18n":{"placeholder":"Searching...","empty":"We didn't find any results for the search: ${query}","hits_time":"${hits} results found in ${time} ms","hits":"${hits} results found"}}</script><script src="/js/config.js"></script>
+
+    <meta name="description" content="Decorator파이썬으로 어느정도 작업하다보면 코드 중에 아래와 같은 형태로 된 코드를 볼 수 있다.(아래는 Flask 예제) 123@app.route(&amp;#x27;&#x2F;&amp;#x27;)def index():    return &quot;Hello World!&quot;  위의 @app.route()와 같은 형태를 Decorator라고 부른다.Decorator를">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Python Decorator">
+<meta property="og:url" content="https://wiggleji.github.io/2020/03/03/python_decorator/index.html">
+<meta property="og:site_name" content="wiggleji&#39;s blog">
+<meta property="og:description" content="Decorator파이썬으로 어느정도 작업하다보면 코드 중에 아래와 같은 형태로 된 코드를 볼 수 있다.(아래는 Flask 예제) 123@app.route(&amp;#x27;&#x2F;&amp;#x27;)def index():    return &quot;Hello World!&quot;  위의 @app.route()와 같은 형태를 Decorator라고 부른다.Decorator를">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2020-03-03T06:00:18.000Z">
+<meta property="article:modified_time" content="2022-09-14T02:41:02.655Z">
+<meta property="article:author" content="wiggleji">
+<meta property="article:tag" content="Python">
+<meta property="article:tag" content="TIL">
+<meta name="twitter:card" content="summary">
+
+
+<link rel="canonical" href="https://wiggleji.github.io/2020/03/03/python_decorator/">
+
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"en","comments":true,"permalink":"https://wiggleji.github.io/2020/03/03/python_decorator/","path":"2020/03/03/python_decorator/","title":"Python Decorator"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>Python Decorator | wiggleji's blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar" role="button">
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">wiggleji's blog</p>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+
+
+
+</div>
+        
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#Decorator"><span class="nav-number">1.</span> <span class="nav-text">Decorator</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#Class-Decorator"><span class="nav-number">1.1.</span> <span class="nav-text">Class Decorator</span></a></li></ol></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author site-overview-item animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">wiggleji</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap site-overview-item animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">18</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">10</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="sidebar-dimmer"></div>
+
+
+    </header>
+
+    
+  <div class="back-to-top" role="button" aria-label="Back to top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://wiggleji.github.io/2020/03/03/python_decorator/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="wiggleji">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="wiggleji's blog">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="Python Decorator | wiggleji's blog">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Python Decorator
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">Posted on</span>
+
+      <time title="Created: 2020-03-03 15:00:18" itemprop="dateCreated datePublished" datetime="2020-03-03T15:00:18+09:00">2020-03-03</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">Edited on</span>
+      <time title="Modified: 2022-09-14 11:41:02" itemprop="dateModified" datetime="2022-09-14T11:41:02+09:00">2022-09-14</time>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+        <h1 id="Decorator"><a href="#Decorator" class="headerlink" title="Decorator"></a>Decorator</h1><p>파이썬으로 어느정도 작업하다보면 코드 중에 아래와 같은 형태로 된 코드를 볼 수 있다.<br>(아래는 Flask 예제)</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@app.route(<span class="params"><span class="string">&#x27;/&#x27;</span></span>)</span></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">index</span>():</span><br><span class="line">    <span class="keyword">return</span> <span class="string">&quot;Hello World!&quot;</span></span><br></pre></td></tr></table></figure>
+
+<p>위의 <code>@app.route()</code>와 같은 형태를 Decorator라고 부른다.<br>Decorator를 사용하는 이유는 대상 함수를 다른 함수로 wrapping 하여 대상함수의 실행 전후에 추가적으로 실행을 하고 싶은 기능을 재사용 가능한 형태로 구현해준다.</p>
+<p>예를 들어, 웹 서비스를 만든다고 했을 때, 각 API마다 로그를 남기고 싶다고 하자.<br>필요한 기능을 로그인, 글쓰기, 사진올리기 총 3개의 함수로 나누어 생각할 때 각 함수마다 로그를 남기는 코드를 적용해줘야 한다.</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">log_function</span>(<span class="params">func</span>):</span><br><span class="line">    <span class="comment"># 로그 남기기</span></span><br><span class="line">    <span class="built_in">print</span>(<span class="string">f&quot;log: <span class="subst">&#123;func&#125;</span>&quot;</span>)</span><br><span class="line">    <span class="keyword">pass</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">login</span>():</span><br><span class="line">    <span class="comment"># 로그인</span></span><br><span class="line">    <span class="comment"># 로그 함수 호출</span></span><br><span class="line">    log_function()</span><br><span class="line">    <span class="keyword">pass</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">upload_post</span>():</span><br><span class="line">    <span class="comment"># 글 업로드</span></span><br><span class="line">    <span class="comment"># 로그 함수 호출</span></span><br><span class="line">    log_function()</span><br><span class="line">    <span class="keyword">pass</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">upload_photo</span>():</span><br><span class="line">    <span class="comment"># 사진 업로드</span></span><br><span class="line">    <span class="comment"># 로그 함수 호출</span></span><br><span class="line">    log_function()</span><br><span class="line">    <span class="keyword">pass</span></span><br></pre></td></tr></table></figure>
+
+<p>보통은 위와같이 로그를 남기는 함수를 선언하여 각 메소드 안에서 호출하겠지만 Decorator를 사용하면 아래와 같은 형태로도 가능하다.</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">log_function</span>(<span class="params">func</span>):</span><br><span class="line">    <span class="comment"># 로그 남기기</span></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">wrapper_function</span>():</span><br><span class="line">        func()</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">f&quot;log: <span class="subst">&#123;func&#125;</span>&quot;</span>)</span><br><span class="line">    <span class="keyword">return</span> wrapper_function</span><br><span class="line"></span><br><span class="line"><span class="meta">@log_function</span></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">login</span>():</span><br><span class="line">    <span class="comment"># 로그인</span></span><br><span class="line">    <span class="keyword">pass</span></span><br><span class="line"></span><br><span class="line"><span class="meta">@log_function</span></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">upload_post</span>():</span><br><span class="line">    <span class="comment"># 글 업로드</span></span><br><span class="line">    <span class="keyword">pass</span></span><br><span class="line"></span><br><span class="line"><span class="meta">@log_function</span></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">upload_photo</span>():</span><br><span class="line">    <span class="comment"># 사진 업로드</span></span><br><span class="line">    <span class="keyword">pass</span></span><br></pre></td></tr></table></figure>
+
+<p>Decorator를 사용할 경우 여러번 재사용 함으로써, 함수에 대한 가독성이 훨씬 좋아진 코드를 볼 수 있다. 또한, 같은 패턴을 사용해도 훨씬 더 간편한 코드 작성이 가능하다.</p>
+<p>Decorator에 대해 설명을 하자면,<br>Decorator 함수를 먼저 정의한 후, decorator를 적용시킬 함수를 인자로 받는다. decorator 함수 내부에는 nested 함수를 선언하여 여기에 추가 작업을 선언하여 사용하고 마지막으로 decorator 함수에서 해당 nested 함수를 반환해주면 된다.</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">decoration_function</span>(<span class="params">func</span>):</span><br><span class="line">    <span class="comment"># 데코레이터 함수</span></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">wrapper_function</span>():</span><br><span class="line">        func()</span><br><span class="line">        pre_handle()</span><br><span class="line">    <span class="keyword">return</span> wrapper_function</span><br><span class="line"></span><br><span class="line"><span class="meta">@decoration_function</span></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">handle</span>():</span><br><span class="line">    <span class="keyword">pass</span></span><br></pre></td></tr></table></figure>
+
+<p><code>func()</code> : 처리 함수<br><code>pre_handle()</code> : 추가 처리 코드<br><code>decoration_function()</code> : Decorator 함수 (호출용)<br><code>wrapper_function()</code> : 처리 함수를 감싸서 추가 처리를 하는 함수 (추가 처리)</p>
+<p>위와 같이 이해하면 된다.</p>
+<hr>
+<h2 id="Class-Decorator"><a href="#Class-Decorator" class="headerlink" title="Class Decorator"></a>Class Decorator</h2><p>클래스 형태로 Decorator를 정의할 수도 있다. 아래의 코드를 보자.</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> datetime</span><br><span class="line"></span><br><span class="line"><span class="keyword">from</span> functools <span class="keyword">import</span> wraps</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">LogDecorator</span>:</span><br><span class="line">    <span class="comment"># 로그 Decorator</span></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">__init__</span>(<span class="params">self, func</span>):</span><br><span class="line">        self.func = func</span><br><span class="line"></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">__call__</span>(<span class="params">self, *args, **kwargs</span>):</span><br><span class="line">        <span class="built_in">print</span>(datetime.datetime.now())</span><br><span class="line">        self.func(self, *args, **kwargs)</span><br><span class="line">        <span class="built_in">print</span>(datetime.datetime.now())</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">LogWithParamDecorator</span>:</span><br><span class="line">    <span class="comment"># 로그 w.파라미터  Decorator</span></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">__init__</span>(<span class="params">self, *args, **kwargs</span>):</span><br><span class="line">        self.<span class="built_in">type</span> = kwargs[<span class="string">&#x27;type&#x27;</span>]</span><br><span class="line"></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">__call__</span>(<span class="params">self, func, *args, **kwargs</span>):</span><br><span class="line"><span class="meta">        @wraps(<span class="params">func</span>)</span></span><br><span class="line">        <span class="keyword">def</span> <span class="title function_">decorator</span>(<span class="params">*args, **kwargs</span>):</span><br><span class="line">            <span class="built_in">print</span>(<span class="string">f&quot;Login type: <span class="subst">&#123;self.<span class="built_in">type</span>&#125;</span>&quot;</span>)</span><br><span class="line">            <span class="built_in">print</span>(datetime.datetime.now())</span><br><span class="line">            result = func(*args, **kwargs)</span><br><span class="line">            <span class="built_in">print</span>(datetime.datetime.now())</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> decorator</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">MainClass</span>:</span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">__init__</span>(<span class="params">self, <span class="built_in">id</span></span>):</span><br><span class="line">        self.<span class="built_in">id</span> = <span class="built_in">id</span></span><br><span class="line"></span><br><span class="line"><span class="meta">    @LogWithParamDecorator(<span class="params"><span class="built_in">type</span>=<span class="string">&quot;user&quot;</span></span>)</span></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">login</span>(<span class="params">self</span>):</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">f&quot;Login Success: <span class="subst">&#123;self.<span class="built_in">id</span>&#125;</span>&quot;</span>)</span><br><span class="line"></span><br><span class="line"><span class="meta">    @LogDecorator</span></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">upload_post</span>(<span class="params">self</span>):</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">&quot;Post Success&quot;</span>)</span><br><span class="line"></span><br><span class="line"><span class="meta">    @LogDecorator</span></span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">upload_image</span>(<span class="params">self</span>):</span><br><span class="line">        <span class="built_in">print</span>(<span class="string">&quot;Image Success&quot;</span>)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">main_function = MainClass(<span class="built_in">id</span>=<span class="string">&quot;bachbach&quot;</span>)</span><br><span class="line">main_function.login()</span><br><span class="line"><span class="built_in">print</span>()</span><br><span class="line">main_function.upload_post()</span><br><span class="line"><span class="built_in">print</span>()</span><br><span class="line">main_function.upload_image()</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">python main.py</span></span><br><span class="line">Login type: user</span><br><span class="line">2020-03-03 16:40:14.131477</span><br><span class="line">Login Success: bachbach</span><br><span class="line">2020-03-03 16:40:14.131504</span><br><span class="line"></span><br><span class="line">2020-03-03 16:40:14.131610</span><br><span class="line">Post Success</span><br><span class="line">2020-03-03 16:40:14.131626</span><br><span class="line"></span><br><span class="line">2020-03-03 16:40:14.131697</span><br><span class="line">Image Success</span><br><span class="line">2020-03-03 16:40:14.131707</span><br></pre></td></tr></table></figure>
+
+<p>위와 같이 2개의 클래스 Decorator를 만들었다.</p>
+<ul>
+<li><code>LogDecorator</code> : 로그 메시지 생성</li>
+<li><code>LogWithParamDecorator</code> : argument를 전달 받아 로그 메시지 생성</li>
+</ul>
+<p>위에서 <code>login()</code>의 경우 클래스를 생성했을 때 받은 <code>id</code>를 출력해준다. 또한, <code>LogWithParamDecorator</code>에서는 로그인한 사람의 유형을 출력하게끔 <code>@LogWithParamDecorator(type=&quot;user&quot;)</code> 형태로 argument를 전달하여 출력한다.</p>
+<p>이와 같이 Decorator는 정말 유용하게 쓰일 수 있다.</p>
+<hr>
+<p>설명이 정말 길다..<br><strong>제일 중요한 것, 그러면 왜 Decorator를 사용하는건가?</strong></p>
+<p>디버깅 또는 검증(로그인 검증 등), type check…<br>정말 많다 🙄</p>
+<p><a target="_blank" rel="noopener" href="https://www.python.org/dev/peps/pep-0318/#motivation">PEP-318</a>와 앞서 설명한 것과 같이 가독성과 직관성도 있지만,<br>STO에서 검색 중에 찾은 이유 중 한가지가 있다. <a target="_blank" rel="noopener" href="https://stackoverflow.com/questions/489720/what-are-some-common-uses-for-python-decorators#comment41753979_489720">링크</a><br>만약, Decorator를 실행할 때, 이미 실행된 적이 있을 경우, 캐시된 값이 반환된다는 것인데 얼마나 큰 영향을 주는지는 모르겠다.</p>
+<p>이미 재사용성이나 코드 가독성, 직관성만 해도 충분하지 않을까 😁</p>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Python/" rel="tag"># Python</a>
+              <a href="/tags/TIL/" rel="tag"># TIL</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2020/03/03/python_generator/" rel="prev" title="Python Generator">
+                  <i class="fa fa-chevron-left"></i> Python Generator
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2020/03/09/program_middleware/" rel="next" title="Middleware">
+                  Middleware <i class="fa fa-chevron-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+
+<div class="copyright">
+  &copy; 
+  <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">wiggleji</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous"></script>
+<script src="/js/comments.js"></script><script src="/js/utils.js"></script><script src="/js/motion.js"></script><script src="/js/schemes/muse.js"></script><script src="/js/next-boot.js"></script>
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+</body>
+</html>

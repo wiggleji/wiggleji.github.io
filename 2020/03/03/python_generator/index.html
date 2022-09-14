@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 6.3.0">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.0/css/all.min.css" integrity="sha256-AbA177XfpSnFEvgpYu1jMygiLabzPCJCRIBtR5jGc0k=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"wiggleji.github.io","root":"/","images":"/images","scheme":"Muse","darkmode":false,"version":"8.13.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":{"enable":false,"style":null},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"prism":false,"i18n":{"placeholder":"Searching...","empty":"We didn't find any results for the search: ${query}","hits_time":"${hits} results found in ${time} ms","hits":"${hits} results found"}}</script><script src="/js/config.js"></script>
+
+    <meta name="description" content="GeneratorGenerator는 Iterator의 심화버전이라 생각할 수 있다. 일반 Iterator의 경우 전제 배열을 반환하지만, Generator는 한번에 하나의 값만 반환하기 때문에 적은 메모리를 사용한다. 1234567891011121314151617181920212223242526def gen():    x, y &#x3D; 1, 2    yield">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Python Generator">
+<meta property="og:url" content="https://wiggleji.github.io/2020/03/03/python_generator/index.html">
+<meta property="og:site_name" content="wiggleji&#39;s blog">
+<meta property="og:description" content="GeneratorGenerator는 Iterator의 심화버전이라 생각할 수 있다. 일반 Iterator의 경우 전제 배열을 반환하지만, Generator는 한번에 하나의 값만 반환하기 때문에 적은 메모리를 사용한다. 1234567891011121314151617181920212223242526def gen():    x, y &#x3D; 1, 2    yield">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2020-03-03T05:03:50.000Z">
+<meta property="article:modified_time" content="2022-09-14T02:41:02.655Z">
+<meta property="article:author" content="wiggleji">
+<meta property="article:tag" content="Python">
+<meta property="article:tag" content="TIL">
+<meta name="twitter:card" content="summary">
+
+
+<link rel="canonical" href="https://wiggleji.github.io/2020/03/03/python_generator/">
+
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"en","comments":true,"permalink":"https://wiggleji.github.io/2020/03/03/python_generator/","path":"2020/03/03/python_generator/","title":"Python Generator"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>Python Generator | wiggleji's blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar" role="button">
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">wiggleji's blog</p>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+
+
+
+</div>
+        
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#Generator"><span class="nav-number">1.</span> <span class="nav-text">Generator</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#Generator-Expression"><span class="nav-number">1.1.</span> <span class="nav-text">Generator Expression</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Reference"><span class="nav-number">1.1.1.</span> <span class="nav-text">Reference</span></a></li></ol></li></ol></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author site-overview-item animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">wiggleji</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap site-overview-item animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">18</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">10</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="sidebar-dimmer"></div>
+
+
+    </header>
+
+    
+  <div class="back-to-top" role="button" aria-label="Back to top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://wiggleji.github.io/2020/03/03/python_generator/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="wiggleji">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="wiggleji's blog">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="Python Generator | wiggleji's blog">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Python Generator
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">Posted on</span>
+
+      <time title="Created: 2020-03-03 14:03:50" itemprop="dateCreated datePublished" datetime="2020-03-03T14:03:50+09:00">2020-03-03</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">Edited on</span>
+      <time title="Modified: 2022-09-14 11:41:02" itemprop="dateModified" datetime="2022-09-14T11:41:02+09:00">2022-09-14</time>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+        <h1 id="Generator"><a href="#Generator" class="headerlink" title="Generator"></a>Generator</h1><p>Generator는 Iterator의 심화버전이라 생각할 수 있다. 일반 Iterator의 경우 전제 배열을 반환하지만, Generator는 한번에 하나의 값만 반환하기 때문에 적은 메모리를 사용한다.</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">gen</span>():</span><br><span class="line">    x, y = <span class="number">1</span>, <span class="number">2</span></span><br><span class="line">    <span class="keyword">yield</span> x, y</span><br><span class="line"></span><br><span class="line">    x += <span class="number">1</span></span><br><span class="line">    <span class="keyword">yield</span> x, y</span><br><span class="line"></span><br><span class="line">g = gen()</span><br><span class="line"></span><br><span class="line"><span class="comment"># (1, 2)</span></span><br><span class="line"><span class="built_in">print</span>(<span class="built_in">next</span>(g))</span><br><span class="line"><span class="comment"># (2, 2)</span></span><br><span class="line"><span class="built_in">print</span>(<span class="built_in">next</span>(g))</span><br><span class="line"></span><br><span class="line"><span class="comment"># 또는 아래와 같은 for 문 형태로 가능</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># (1, 2)</span></span><br><span class="line"><span class="comment"># (2, 2)</span></span><br><span class="line"><span class="keyword">for</span> i <span class="keyword">in</span> gen():</span><br><span class="line">    <span class="built_in">print</span>(i)</span><br><span class="line"></span><br><span class="line"><span class="comment"># Finished</span></span><br><span class="line"><span class="keyword">try</span>:</span><br><span class="line">    <span class="built_in">print</span>(<span class="built_in">next</span>(g))</span><br><span class="line"><span class="keyword">except</span> StopIteration:</span><br><span class="line">    <span class="built_in">print</span>(<span class="string">&quot;Finished&quot;</span>)</span><br></pre></td></tr></table></figure>
+
+<p>Generator 함수를 실행하면, 처음으로 만나는 yield 에서 값을 반환한다.<br>만약, 다시 한번 함수가 호출되면 그 다음 부분부터 yield 를 만날때까지 코드가 실행된다.</p>
+<blockquote>
+<p>지역변수들은 iteration이 진행될 동안 유지된다. 더 이상 yield 할 값이 없을 경우, <code>StopIteration</code> exception이 발생한다.</p>
+</blockquote>
+<p>Generator 함수를 변수에 할당하게 되면 해당 변수는 Generator 클래스 객체가 된다. 위의 경우, <code>g = gen()</code>에서 <code>g</code>는 Generator 클래스 객체이며, <code>next()</code> 내장함수를 통해 Generator의 다음 값을 불러올 수 있는 것이다.</p>
+<p><strong>Fibonacci 수열 예제</strong></p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> time</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">fibonacci</span>():</span><br><span class="line">    x, y = <span class="number">0</span>, <span class="number">1</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">while</span> <span class="literal">True</span>:</span><br><span class="line">        <span class="keyword">yield</span> y</span><br><span class="line"></span><br><span class="line">        x, y = y, x+y</span><br><span class="line"></span><br><span class="line">fib = fibonacci()</span><br><span class="line"></span><br><span class="line"><span class="keyword">try</span>:</span><br><span class="line">    <span class="keyword">for</span> i <span class="keyword">in</span> fib:</span><br><span class="line">        <span class="built_in">print</span>(i)</span><br><span class="line"></span><br><span class="line">        time.sleep(<span class="number">1</span>)</span><br><span class="line"><span class="keyword">except</span> KeyboardInterrupt:</span><br><span class="line">    <span class="built_in">print</span>(<span class="string">&quot;Stop&quot;</span>)</span><br></pre></td></tr></table></figure>
+
+<p>위와 같이 사용자가 멈추기 전까지 피포나치 수열을 출력하도록 만들 수도 있다.</p>
+<p><strong>Iterator와 Generator의 차이</strong></p>
+<p>Iterator의 경우, 모든 값이 다 들어간 상태에서 객체를 반환하며, Generator는 yield에 의해 하나의 데이터씩 반환하는 차이다.<br>Generator는 데이터가 많아 한번에 모든 데이터를 반환하기 어려운 상황에서 일부 데이터만 처리할 때 유용하다.<br>또한 Iterator를 사용했을 때보다 Generator를 사용하면 더 빠른 시간에 적은 코드와 메모리로 실행이 가능하다. 왜 이게 가능할까?</p>
+<p>예제 코드를 보자 (출처: <a target="_blank" rel="noopener" href="http://schoolofweb.net/blog/posts/%ED%8C%8C%EC%9D%B4%EC%8D%AC-%EC%A0%9C%EB%84%88%EB%A0%88%EC%9D%B4%ED%84%B0-generator/">링크</a>)</p>
+<blockquote>
+<p>출처에서는 Python2.7 버전으로 작성되어 3.7 버전에 맞는 문법으로 바꿔서 작성했다. </p>
+</blockquote>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># -*- coding: utf-8 -*-</span></span><br><span class="line"><span class="keyword">from</span> __future__ <span class="keyword">import</span> division</span><br><span class="line"><span class="keyword">import</span> os</span><br><span class="line"><span class="keyword">import</span> psutil</span><br><span class="line"><span class="keyword">import</span> random</span><br><span class="line"><span class="keyword">import</span> time</span><br><span class="line"></span><br><span class="line">names = [<span class="string">&#x27;최용호&#x27;</span>, <span class="string">&#x27;지길정&#x27;</span>, <span class="string">&#x27;진영욱&#x27;</span>, <span class="string">&#x27;김세훈&#x27;</span>, <span class="string">&#x27;오세훈&#x27;</span>, <span class="string">&#x27;김민우&#x27;</span>]</span><br><span class="line">majors = [<span class="string">&#x27;컴퓨터 공학&#x27;</span>, <span class="string">&#x27;국문학&#x27;</span>, <span class="string">&#x27;영문학&#x27;</span>, <span class="string">&#x27;수학&#x27;</span>, <span class="string">&#x27;정치&#x27;</span>]</span><br><span class="line"></span><br><span class="line">process = psutil.Process(os.getpid())</span><br><span class="line">mem_before = process.memory_info().rss / <span class="number">1024</span> / <span class="number">1024</span></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">people_list</span>(<span class="params">num_people</span>):</span><br><span class="line">    result = []</span><br><span class="line">    <span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(num_people):</span><br><span class="line">        person = &#123;</span><br><span class="line">            <span class="string">&#x27;id&#x27;</span>: i,</span><br><span class="line">            <span class="string">&#x27;name&#x27;</span>: random.choice(names),</span><br><span class="line">            <span class="string">&#x27;major&#x27;</span>: random.choice(majors)</span><br><span class="line">        &#125;</span><br><span class="line">        result.append(person)</span><br><span class="line">    <span class="keyword">return</span> result</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">people_generator</span>(<span class="params">num_people</span>):</span><br><span class="line">    <span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(num_people):</span><br><span class="line">        person = &#123;</span><br><span class="line">            <span class="string">&#x27;id&#x27;</span>: i,</span><br><span class="line">            <span class="string">&#x27;name&#x27;</span>: random.choice(names),</span><br><span class="line">            <span class="string">&#x27;major&#x27;</span>: random.choice(majors)</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">yield</span> person</span><br><span class="line"></span><br><span class="line">t1 = time.clock()</span><br><span class="line"><span class="comment"># Iterator 사용</span></span><br><span class="line">people = people_list(<span class="number">1000000</span>)  <span class="comment">#1 people_list를 호출</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># Generator 사용</span></span><br><span class="line">people = people_generator(<span class="number">1000000</span>)  <span class="comment">#1 people_generator를 호출</span></span><br><span class="line"><span class="keyword">for</span> person <span class="keyword">in</span> people:</span><br><span class="line">    <span class="keyword">pass</span></span><br><span class="line"></span><br><span class="line">t2 = time.clock()</span><br><span class="line">mem_after = process.memory_info().rss / <span class="number">1024</span> / <span class="number">1024</span></span><br><span class="line">total_time = t2 - t1</span><br><span class="line"></span><br><span class="line"><span class="built_in">print</span> (<span class="string">&#x27;시작 전 메모리 사용량: &#123;&#125; MB&#x27;</span>.<span class="built_in">format</span>(mem_before))</span><br><span class="line"><span class="built_in">print</span> (<span class="string">&#x27;종료 후 메모리 사용량: &#123;&#125; MB&#x27;</span>.<span class="built_in">format</span>(mem_after))</span><br><span class="line"><span class="built_in">print</span> (<span class="string">&#x27;총 소요된 시간: &#123;:.6f&#125; 초&#x27;</span>.<span class="built_in">format</span>(total_time))</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">Iterator 사용</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">python3 generator_example.py</span></span><br><span class="line">시작 전 메모리 사용량: 10.375 MB</span><br><span class="line">종료 후 메모리 사용량: 304.265625 MB</span><br><span class="line">총 소요된 시간: 2.089325 초</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">Generator 사용</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">python3 generator_example.py</span></span><br><span class="line">시작 전 메모리 사용량: 10.5390625 MB</span><br><span class="line">종료 후 메모리 사용량: 10.55859375 MB</span><br><span class="line">총 소요된 시간: 1.926961 초</span><br></pre></td></tr></table></figure>
+
+<p>실행시간 차이는 그렇게 크게 안 느껴지지만 메모리 사용량은 30배 가량 차이가 난다. 이유는 Iterator는 실행 시 1000000 번의 반복을 하면서 변수를 할당하지만, Generator는 실제로 하나의 Generator 객체를 만들고 <code>yield</code> 문에서 값을 하나씩만 반환하기 때문에 메모리를 차지하는 양이 적은 것이다.</p>
+<p>Generator는 확실히 매력적인 문법이다. 한마디로 정리한다면</p>
+<blockquote>
+<p>Generator는 Iterator이며, 적은 코드로 메모리 사용이 낮은 lazy facotry라 불린다. (값을 호출될 때 다시 생성한다)</p>
+</blockquote>
+<hr>
+<h2 id="Generator-Expression"><a href="#Generator-Expression" class="headerlink" title="Generator Expression"></a>Generator Expression</h2><p>Generator expression은 list comprehension과 유사하며, 차이는 list가 아닌 generator를 반환하는 것이다.</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> time</span><br><span class="line"></span><br><span class="line">gen = (i <span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(<span class="number">1000</span>) <span class="keyword">if</span> <span class="keyword">not</span> i % <span class="number">3</span>)</span><br><span class="line"></span><br><span class="line"><span class="keyword">for</span> e <span class="keyword">in</span> <span class="built_in">range</span>(<span class="number">100</span>):</span><br><span class="line">    <span class="built_in">print</span>(<span class="built_in">next</span>(gen))</span><br><span class="line"></span><br><span class="line"><span class="keyword">try</span>:</span><br><span class="line">    <span class="keyword">for</span> e <span class="keyword">in</span> gen:</span><br><span class="line">        <span class="built_in">print</span>(e)</span><br><span class="line">        time.sleep(<span class="number">1</span>)</span><br><span class="line"><span class="keyword">except</span> KeyboardInterrupt:</span><br><span class="line">    <span class="built_in">print</span>(<span class="string">&quot;Stop&quot;</span>)</span><br></pre></td></tr></table></figure>
+
+<p>위의 예제는 1~1000 까지 숫자중 3으로 나누어 떨어지는 숫자를 계산하는 예제이다.</p>
+<p>generator expression은 소괄호를 사용하고 있다. 만약 list comprehension을 사용한다면 모든 값을 한번에 생성하려 하기 때문에 많은 메모리를 사용할 수 있지만, generator expression을 사용하여 lazy하게 값을 처리한다.</p>
+<p>예제를 하나 더 보도록 하자</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># grep.py</span></span><br><span class="line"><span class="keyword">import</span> sys</span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">grep</span>(<span class="params">pattern, lines</span>):</span><br><span class="line">    <span class="comment"># pattern이 있는 경우 반환</span></span><br><span class="line">    <span class="keyword">return</span> ((line, lines.index(line)+<span class="number">1</span>) <span class="keyword">for</span> line <span class="keyword">in</span> lines <span class="keyword">if</span> pattern <span class="keyword">in</span> line)</span><br><span class="line"></span><br><span class="line">file_name = sys.argv[<span class="number">2</span>]</span><br><span class="line">pattern = sys.argv[<span class="number">1</span>]</span><br><span class="line"></span><br><span class="line"><span class="keyword">with</span> <span class="built_in">open</span>(file_name, <span class="string">&#x27;r&#x27;</span>) <span class="keyword">as</span> f:</span><br><span class="line">    lines = f.readlines()</span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span> line, n <span class="keyword">in</span> grep(pattern, lines):</span><br><span class="line">        <span class="built_in">print</span>(n, line.rstrip())</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight txt"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"># test.txt</span><br><span class="line">파이썬 좋아</span><br><span class="line">응 안 좋아</span><br><span class="line">요리 좋아</span><br><span class="line">코딩 파이썬</span><br><span class="line">파이썬 코리아</span><br></pre></td></tr></table></figure>
+
+<p>위의 <code>grep()</code>은 파일에서 읽어온 줄에 일정 패턴이 있는 경우, 해당 줄과 줄 숫자를 반환하는 Generator 함수이다.<br>위의 실행결과는 아래와 같다.</p>
+<blockquote>
+<p>실행결과</p>
+</blockquote>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">python grep.py 파이썬 test.txt</span></span><br><span class="line">1 파이썬 좋아</span><br><span class="line">4 코딩 파이썬</span><br><span class="line">5 파이썬 코리아</span><br></pre></td></tr></table></figure>
+
+<hr>
+<h3 id="Reference"><a href="#Reference" class="headerlink" title="Reference"></a>Reference</h3><p><a target="_blank" rel="noopener" href="http://schoolofweb.net/blog/posts/%ED%8C%8C%EC%9D%B4%EC%8D%AC-%EC%A0%9C%EB%84%88%EB%A0%88%EC%9D%B4%ED%84%B0-generator/">파이썬-제너레이터</a></p>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Python/" rel="tag"># Python</a>
+              <a href="/tags/TIL/" rel="tag"># TIL</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2020/03/03/python_iterator/" rel="prev" title="Python Iterator">
+                  <i class="fa fa-chevron-left"></i> Python Iterator
+                </a>
+            </div>
+            <div class="post-nav-item">
+                <a href="/2020/03/03/python_decorator/" rel="next" title="Python Decorator">
+                  Python Decorator <i class="fa fa-chevron-right"></i>
+                </a>
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+
+<div class="copyright">
+  &copy; 
+  <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">wiggleji</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous"></script>
+<script src="/js/comments.js"></script><script src="/js/utils.js"></script><script src="/js/motion.js"></script><script src="/js/schemes/muse.js"></script><script src="/js/next-boot.js"></script>
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+</body>
+</html>

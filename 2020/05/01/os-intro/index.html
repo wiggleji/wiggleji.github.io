@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width">
+<meta name="theme-color" content="#222"><meta name="generator" content="Hexo 6.3.0">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.0/css/all.min.css" integrity="sha256-AbA177XfpSnFEvgpYu1jMygiLabzPCJCRIBtR5jGc0k=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.1.1/animate.min.css" integrity="sha256-PR7ttpcvz8qrF57fur/yAx1qXMFJeJFiA6pSzWi0OIE=" crossorigin="anonymous">
+
+<script class="next-config" data-name="main" type="application/json">{"hostname":"wiggleji.github.io","root":"/","images":"/images","scheme":"Muse","darkmode":false,"version":"8.13.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12},"copycode":{"enable":false,"style":null},"bookmark":{"enable":false,"color":"#222","save":"auto"},"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"stickytabs":false,"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"prism":false,"i18n":{"placeholder":"Searching...","empty":"We didn't find any results for the search: ${query}","hits_time":"${hits} results found in ${time} ms","hits":"${hits} results found"}}</script><script src="/js/config.js"></script>
+
+    <meta name="description" content="OSTEP01. Intro - Introduction codeVon Neumann 모델 - 프로세서가 프로그램이 완료될때까지 메모리로부터 명령어를 fetch하여, decode 후, execute 하는 과정을 반복한다. OS - 프로그램을 실행하고, 프로그램이 메모리를 공유하며, 다른 장치와 상호작용할 수 있도록 도와주는 소프트웨어를 뜻한다.  THE CRU">
+<meta property="og:type" content="article">
+<meta property="og:title" content="os_intro">
+<meta property="og:url" content="https://wiggleji.github.io/2020/05/01/os-intro/index.html">
+<meta property="og:site_name" content="wiggleji&#39;s blog">
+<meta property="og:description" content="OSTEP01. Intro - Introduction codeVon Neumann 모델 - 프로세서가 프로그램이 완료될때까지 메모리로부터 명령어를 fetch하여, decode 후, execute 하는 과정을 반복한다. OS - 프로그램을 실행하고, 프로그램이 메모리를 공유하며, 다른 장치와 상호작용할 수 있도록 도와주는 소프트웨어를 뜻한다.  THE CRU">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2020-05-01T05:07:22.000Z">
+<meta property="article:modified_time" content="2022-09-14T02:41:02.654Z">
+<meta property="article:author" content="wiggleji">
+<meta property="article:tag" content="TIL">
+<meta property="article:tag" content="OS">
+<meta name="twitter:card" content="summary">
+
+
+<link rel="canonical" href="https://wiggleji.github.io/2020/05/01/os-intro/">
+
+
+
+<script class="next-config" data-name="page" type="application/json">{"sidebar":"","isHome":false,"isPost":true,"lang":"en","comments":true,"permalink":"https://wiggleji.github.io/2020/05/01/os-intro/","path":"2020/05/01/os-intro/","title":"os_intro"}</script>
+
+<script class="next-config" data-name="calendar" type="application/json">""</script>
+<title>os_intro | wiggleji's blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+    <link rel="stylesheet" href="/css/noscript.css">
+  </noscript>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar" role="button">
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <p class="site-title">wiggleji's blog</p>
+      <i class="logo-line"></i>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+
+
+
+</div>
+        
+  
+  <div class="toggle sidebar-toggle" role="button">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <div class="sidebar-panel-container">
+        <!--noindex-->
+        <div class="post-toc-wrap sidebar-panel">
+            <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#OSTEP"><span class="nav-number">1.</span> <span class="nav-text">OSTEP</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#01-Intro-Introduction-code"><span class="nav-number">2.</span> <span class="nav-text">01. Intro - Introduction code</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#THE-CRUX-OF-THE-PROBLEM"><span class="nav-number">2.1.</span> <span class="nav-text">THE CRUX OF THE PROBLEM</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#CPU-%EA%B0%80%EC%83%81%ED%99%94-Virtualizing-the-CPU"><span class="nav-number">2.2.</span> <span class="nav-text">CPU 가상화 (Virtualizing the CPU)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%EB%A9%94%EB%AA%A8%EB%A6%AC-%EA%B0%80%EC%83%81%ED%99%94-Virtualizing-Memory"><span class="nav-number">2.3.</span> <span class="nav-text">메모리 가상화 (Virtualizing Memory)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%EB%8F%99%EC%8B%9C%EC%8B%A4%ED%96%89-Concurrency"><span class="nav-number">2.4.</span> <span class="nav-text">동시실행(Concurrency)</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#THE-CRUX-OF-THE-PROBLEM-1"><span class="nav-number">2.5.</span> <span class="nav-text">THE CRUX OF THE PROBLEM</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%EC%A7%80%EC%86%8D%EC%84%B1-Persistence"><span class="nav-number">2.6.</span> <span class="nav-text">지속성 (Persistence)</span></a></li></ol></li></ol></div>
+        </div>
+        <!--/noindex-->
+
+        <div class="site-overview-wrap sidebar-panel">
+          <div class="site-author site-overview-item animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">wiggleji</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap site-overview-item animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+        <a href="/archives/">
+          <span class="site-state-item-count">18</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-tags">
+          <a href="/tags/">
+        <span class="site-state-item-count">10</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="sidebar-dimmer"></div>
+
+
+    </header>
+
+    
+  <div class="back-to-top" role="button" aria-label="Back to top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+    <div class="main-inner post posts-expand">
+
+
+  
+
+
+<div class="post-block">
+  
+  
+
+  <article itemscope itemtype="http://schema.org/Article" class="post-content" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://wiggleji.github.io/2020/05/01/os-intro/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="wiggleji">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="wiggleji's blog">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="post" itemscope itemtype="http://schema.org/CreativeWork">
+      <meta itemprop="name" content="os_intro | wiggleji's blog">
+      <meta itemprop="description" content="">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          os_intro
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">Posted on</span>
+
+      <time title="Created: 2020-05-01 14:07:22" itemprop="dateCreated datePublished" datetime="2020-05-01T14:07:22+09:00">2020-05-01</time>
+    </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar-check"></i>
+      </span>
+      <span class="post-meta-item-text">Edited on</span>
+      <time title="Modified: 2022-09-14 11:41:02" itemprop="dateModified" datetime="2022-09-14T11:41:02+09:00">2022-09-14</time>
+    </span>
+
+  
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+        <h1 id="OSTEP"><a href="#OSTEP" class="headerlink" title="OSTEP"></a><a target="_blank" rel="noopener" href="https://roamgom.github.io/2020/04/30/os/">OSTEP</a></h1><h1 id="01-Intro-Introduction-code"><a href="#01-Intro-Introduction-code" class="headerlink" title="01. Intro - Introduction code"></a>01. Intro - Introduction code</h1><p>Von Neumann 모델 - 프로세서가 프로그램이 완료될때까지 메모리로부터 명령어를 fetch하여, decode 후, execute 하는 과정을 반복한다.</p>
+<p>OS - 프로그램을 실행하고, 프로그램이 메모리를 공유하며, 다른 장치와 상호작용할 수 있도록 도와주는 소프트웨어를 뜻한다.</p>
+<hr>
+<h2 id="THE-CRUX-OF-THE-PROBLEM"><a href="#THE-CRUX-OF-THE-PROBLEM" class="headerlink" title="THE CRUX OF THE PROBLEM"></a>THE CRUX OF THE PROBLEM</h2><p><strong>리소스 가상화하기</strong><br>어떻게 OS는 리소스를 가상화(virtualize) 시키는 것일까?<br>이유는 당연히 시스템을 더 쉽게 사용할 수 있도록 만들기 위해서일 것이다.<br>결국, OS가 어떤 매커니즘과 정책으로 가상화를 진행하는지, 어떻게 효율적으로 진행하며 무슨 H&#x2F;W 지원이 필요한가를 논해야한다.</p>
+<hr>
+<p>OS는 가상화(Virtualization)을 통해, 시스템이 정확하고 효율적으로 작동하는 부분을 책임진다. 가상화란 OS가 물리적 리소스(프로세서, 메모리, 디스크 등)를 보편적이고, 사용하기 쉬운 가상의 형태로 변환시킨다.<br>여러 프로그램이 실행되고, 동시에 서로의 명령어와 데이터, 장치에 접근할 수 있게 해주며, CPU, 메모리, 디스크와 같은 리소스를 관리해주는 OS &#x3D; resource manager 라 할 수 있다.</p>
+<p>예제를 하나 보자.</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdio.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdlib.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;sys/time.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;assert.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&quot;common.h&quot;</span></span></span><br><span class="line"></span><br><span class="line"><span class="type">int</span> <span class="title function_">main</span><span class="params">(<span class="type">int</span> argc, <span class="type">char</span> *argv[])</span> &#123;</span><br><span class="line">	<span class="keyword">if</span> (argc != <span class="number">2</span>) &#123;</span><br><span class="line">		<span class="built_in">fprintf</span>(<span class="built_in">stderr</span>, <span class="string">&quot;usage: cpu &lt;string&gt;\n&quot;</span>);</span><br><span class="line">		<span class="built_in">exit</span>(<span class="number">1</span>);</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="type">char</span> *str = argv[<span class="number">1</span>];</span><br><span class="line">	<span class="keyword">while</span> (<span class="number">1</span>) &#123;</span><br><span class="line">		Spin(<span class="number">1</span>);</span><br><span class="line">		<span class="built_in">printf</span>(<span class="string">&quot;%s\n&quot;</span>, str);</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>Figure 2.1 : <code>간단한 루프와 출력을 실행하는 코드 (cpu.c)</code></p>
+<h2 id="CPU-가상화-Virtualizing-the-CPU"><a href="#CPU-가상화-Virtualizing-the-CPU" class="headerlink" title="CPU 가상화 (Virtualizing the CPU)"></a>CPU 가상화 (Virtualizing the CPU)</h2><p>위의 코드는 반복적으로 시간을 확인하고 1초 동안 실행되면 리턴하는 함수, <code>Spin()</code> 을 호출한다. 만약, 싱글 프로세서(CPU)에서 <code>cpu.c</code>를 컴파일하여 실행하면 아래와 같은 결과를 볼 수 있다.</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_">prompt&gt; </span><span class="language-bash">gcc -o cpu cpu.c -Wall</span></span><br><span class="line"><span class="meta prompt_">prompt&gt; </span><span class="language-bash">./cpu <span class="string">&quot;A&quot;</span></span></span><br><span class="line">A</span><br><span class="line">A</span><br><span class="line">A</span><br><span class="line">A</span><br><span class="line">^C</span><br><span class="line"><span class="meta prompt_">prompt&gt;</span></span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p><code>^C</code>는 ctrl+C 또는 cmd+C 로 실행을 멈춘 것</p>
+</blockquote>
+<p>다르게 실행을 해보자</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">prompt. ./cpu A &amp; ./cpu B &amp; ./cpu C &amp; ./cpu D &amp;</span><br><span class="line">[1] 7353</span><br><span class="line">[2] 7354</span><br><span class="line">[3] 7355</span><br><span class="line">[4] 7356</span><br><span class="line">A</span><br><span class="line">B</span><br><span class="line">D</span><br><span class="line">C</span><br><span class="line">A</span><br><span class="line">B</span><br><span class="line">D</span><br><span class="line">C</span><br><span class="line">A</span><br><span class="line">...</span><br></pre></td></tr></table></figure>
+<p>Figure 2.2 : <code>여러 프로그램을 동시에 실행</code></p>
+<p>비록 싱글 프로세서를 사용하고 있지만, 4개의 프로그램이 동시에 실행되는 것처럼 보인다. 이는 OS가 하나의 CPU를 거의 무한에 가까운 여러개의 가상 CPU로 만드는 착각을 만드는 것이다. 이를 <strong>CPU 가상화</strong>라고 한다.<br>이상하게도 결과를 보면, 실행 순서가 규칙적이지 않다. 이는 OS의 정책마다 실행 순서가 다르기 때문이다. 실제로 다른 OS에서 실행을 해보면 출력 결과가 다르게 나올 것이다. 이러한 부분은 뒤에서 다룬다.</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;unistd.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdio.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdlib.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&quot;common.h&quot;</span></span></span><br><span class="line"></span><br><span class="line"><span class="type">int</span> <span class="title function_">main</span><span class="params">(<span class="type">int</span> argc, <span class="type">char</span> *argv[])</span> &#123;</span><br><span class="line">	<span class="type">int</span> *p = <span class="built_in">malloc</span>(<span class="keyword">sizeof</span>(<span class="type">int</span>));				<span class="comment">// a1</span></span><br><span class="line">	assert (p != <span class="literal">NULL</span>);</span><br><span class="line">	<span class="built_in">printf</span>(<span class="string">&quot;(%d) address pointed to by p: %p\n&quot;</span>, getpid(), p);	<span class="comment">// a2</span></span><br><span class="line">	*p = <span class="number">0</span>;										<span class="comment">// a3</span></span><br><span class="line">	<span class="keyword">while</span> (<span class="number">1</span>) &#123;</span><br><span class="line">		Spin(<span class="number">1</span>);</span><br><span class="line">		*p = *p + <span class="number">1</span>;</span><br><span class="line">		<span class="built_in">printf</span>(<span class="string">&quot;(%d) p: %d\n&quot;</span>, getpid(), *p);	<span class="comment">// a4</span></span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>Figure 2.3 : <code>메모리에 접근하는 프로그램 (mem.c)</code></p>
+<h2 id="메모리-가상화-Virtualizing-Memory"><a href="#메모리-가상화-Virtualizing-Memory" class="headerlink" title="메모리 가상화 (Virtualizing Memory)"></a>메모리 가상화 (Virtualizing Memory)</h2><p>이제는 메모리를 가상화 해보자. 물리적 메모리 개념은 쉽다. 그저, bytes의 배열이고, 메모리에 데이터가 저장된 주소를 명시하여 읽어들인 후, 메모리에 저장(또는 수정)한다.<br>메모리는 프로그램이 실행되는 모든 시간마다 접근하며, 명령어를 메모리에 저장하고, 실행될 때 호출과 저장을 번갈아가며 실행한다.<br>위 코드의 실행 결과를 보자.</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_">prompt&gt; </span><span class="language-bash">./mem</span></span><br><span class="line">(2134) address pointed to by p: 0x200000</span><br><span class="line">(2134) p: 1</span><br><span class="line">(2134) p: 2</span><br><span class="line">(2134) p: 3</span><br><span class="line">(2134) p: 4</span><br><span class="line">(2134) p: 5</span><br><span class="line">^C</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_">prompt&gt; </span><span class="language-bash">./mem &amp;; ./mem &amp;</span></span><br><span class="line">[1] 24113</span><br><span class="line">[2] 24114</span><br><span class="line">(24113) address pointed to by p: 0x200000</span><br><span class="line">(24114) address pointed to by p: 0x200000</span><br><span class="line">(24113) p: 1</span><br><span class="line">(24114) p: 1</span><br><span class="line">(24113) p: 2</span><br><span class="line">(24114) p: 2</span><br><span class="line">(24114) p: 3</span><br><span class="line">(24113) p: 3</span><br><span class="line">(24113) p: 4</span><br><span class="line">(24114) p: 4</span><br><span class="line">...</span><br></pre></td></tr></table></figure>
+<p>Figure 2.4 : <code>메모리 프로그램을 여러번. 실행</code></p>
+<p>위의 프로그램을 보면, <code>a1</code>에서 메모리를 할당한다. 그리고, <code>a2</code>에서 메모리 주소를 출력하고, <code>a3</code>에서 새로 할당된 메모리에 <code>0</code>을 저장한다. 마지막으로, 반복하며, <code>p</code>에 저장된 주소를 1초마다 증가시킨다. 여기서 <code>getpid()</code>를 통해 process identifier를 같이 출력한다. 새로 할당된 주소는 <code>0x200000</code>이며 프로그램이 실행되며 천천히 값을 업데이트하며 출력한다.<br><strong>Figure 2.4</strong> 에서 여러 프로세스를 동시에 실행하는데, 두개의 프로세스 모두 같은 주소인 <code>0x200000</code>에 할당되어 서로 독립적으로 값을 증가하는 걸 볼 수 있다. 이를 통해, 두개의 프로그램이 같은 물리 메모리를 공유하는게 아니라 독립적인 메모리를 가지고 실행된다는 걸 알 수 있다.</p>
+<p>OS에서 이러한 현상을 <strong>메모리 가상화</strong>라고 한다. 각 프로세스는 OS가 물리 주소로 매핑한 개인 소유의 가상 주소(주소 공간)를 가진다는 말이다. 메모리는 다른 프로세스의 공간에 영향을 주지 않는 독립된 공간을 쓰는것처럼 보인다. 하지만, 물리 주소는 공유 자원이며, OS에서 이를 관리하여 독립된 공간을 제공해주는 것이다.</p>
+<p>위의 예제를 통해, 이 책의 첫 부분인 가상화 내용을 알 수 있다.</p>
+<h2 id="동시실행-Concurrency"><a href="#동시실행-Concurrency" class="headerlink" title="동시실행(Concurrency)"></a>동시실행(Concurrency)</h2><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdio.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&lt;stdlib.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">include</span> <span class="string">&quot;common.h&quot;</span></span></span><br><span class="line"></span><br><span class="line"><span class="keyword">volatile</span> <span class="type">int</span> counter = <span class="number">0</span>;</span><br><span class="line"><span class="type">int</span> loops;</span><br><span class="line"></span><br><span class="line"><span class="type">void</span> *<span class="title function_">worker</span><span class="params">(<span class="type">void</span> *arg)</span> &#123;</span><br><span class="line">	<span class="type">int</span> i;</span><br><span class="line">	<span class="keyword">for</span> (i = <span class="number">0</span>; i &lt; loops: i++) &#123;</span><br><span class="line">		counter++;</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">return</span> <span class="literal">NULL</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="type">int</span> <span class="title function_">main</span><span class="params">(<span class="type">int</span> argc, <span class="type">char</span> *argv[])</span> &#123;</span><br><span class="line">	<span class="keyword">if</span> (argc != <span class="number">2</span>) &#123;</span><br><span class="line">		<span class="built_in">fprintf</span>(<span class="built_in">stderr</span>, <span class="string">&quot;usage: threads &lt;value&gt;\n&quot;</span>);</span><br><span class="line">		<span class="built_in">exit</span>(<span class="number">1</span>);</span><br><span class="line">	&#125;</span><br><span class="line">	loops = atoi(argv[<span class="number">1</span>]);</span><br><span class="line">	<span class="type">pthread_t</span> p1, p2;</span><br><span class="line">	<span class="built_in">printf</span>(<span class="string">&quot;Initial value : %d\n&quot;</span>, counter);</span><br><span class="line"></span><br><span class="line">	Pthread_create(&amp;p1, <span class="literal">NULL</span>, worker, <span class="literal">NULL</span>);</span><br><span class="line">	Pthread_create(&amp;p2, <span class="literal">NULL</span>, worker, <span class="literal">NULL</span>);</span><br><span class="line">	Pthread_join(p1, <span class="literal">NULL</span>);</span><br><span class="line">	Pthread_join(p2, <span class="literal">NULL</span>);</span><br><span class="line">	<span class="built_in">printf</span>(<span class="string">&quot;final value : %d\n&quot;</span>, counter);</span><br><span class="line">	<span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>Figure 2.5 : <code>멀티쓰레드 프로그램 (threads.c)</code></p>
+<p>이 책의 다른 핵심 주제는 바로 동시실행(concurrency)이다. 이는 같은 프로그램에서 많은 일을 한번에 처리할 때 생기는 문제와 부딪힐 때 사용하는 용어이다. 위의 가상화 예제에서 보듯, OS는 많은 일을 한번에 처리한다. 시간이 지날 수록, 이는 여러 문제로 이어진다. 이러한 문제는 OS 뿐 아니라, 멀티쓰레드 프로그램에서도 보인다. <strong>Figure 2.5</strong> 멀티쓰레드 프로그램을 보자.<br>모든 부분을 잉해할 수는 없어도, 프로그램에서 <code>Pthread_create()</code>로 2개의 쓰레드를 생성한다. 쓰레드는 1개 이상의 다른 함수와 같은 메모리 공간을 공유하며 작동하는 함수로 이해하면 된다. 예를 들어, 각 쓰레드는 <code>worker()</code>라는 루틴에서 시작하여 <code>loop</code> 숫자만큼 반복하며 <code>counter</code>를 증가시킨다.</p>
+<p><code>loops</code>를 1000으로 설정하여 실행해보자. </p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_">prompt&gt; </span><span class="language-bash">gcc -o thread thread.c -Wall -pthread</span></span><br><span class="line"><span class="meta prompt_">prompt&gt; </span><span class="language-bash">./thread 1000</span></span><br><span class="line">Initial value : 0</span><br><span class="line">Final value : 2000</span><br></pre></td></tr></table></figure>
+
+<p>예상했던대로 2개의 쓰레드가 실행되면 각 쓰레드가 1000번씩 더하여 총 2000의 값을 나타낸다. <code>loops</code>가 N의 입력값을 받는다면, 결과는 2N이 된다. 하지만, 만약 더 큰 숫자로 실행하면 어떻게 나올까?</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_">prompt&gt; </span><span class="language-bash">./thread 100000</span></span><br><span class="line">Initial value : 0</span><br><span class="line">Final value : 143012		// 음?</span><br><span class="line"><span class="meta prompt_">prompt&gt; </span><span class="language-bash">./thread 100000</span></span><br><span class="line">Initial value : 0</span><br><span class="line">Final value : 137298		// 왓더?</span><br></pre></td></tr></table></figure>
+
+<p>이번 실행에서 입력값을 100,000으로 주었지만 우리가 예상한 값인 200,000이 아니라 143,012, 137,298 등 엉뚱한 출력값을 보여준다. 값이 틀릴 뿐 아니라, 전혀 다른 값이 출력되는데, 무엇이 문제일까?<br>이는, 명령어가 동시에 실행될 때, 명령어가 어떻게 처리되는지와 연관되어 있다. 3개의 명령어가 처리된다: 메모리에서 레지스터로 값을 불러오기, 그 값을 더하기, 수정된 값을 다시 메모리에 저장하기. 이 3개의 명령어가 atomic하게(하나씩) 처리되지 않기 때문에, 이상한 결과가 출력되는 것이다. 이런 동시성 문제는 2번째 챕터에서 다루자.</p>
+<hr>
+<h2 id="THE-CRUX-OF-THE-PROBLEM-1"><a href="#THE-CRUX-OF-THE-PROBLEM-1" class="headerlink" title="THE CRUX OF THE PROBLEM"></a>THE CRUX OF THE PROBLEM</h2><p><strong>올바른 동시성 프로그램 작성하기</strong><br>같은 메모리를 공유하며 동시 실행되는 여러 쓰레드가 있을 때, 어떻게 올바른 프로그램을 빌드할 수 있을까? OS에서 어느 요소가 필요할까? H&#x2F;W의 무슨 매커니즘이 제공되어야 할까? 우리는 어떻게 이러한 동시성 문제를 해결할 수 있을까?</p>
+<hr>
+<h2 id="지속성-Persistence"><a href="#지속성-Persistence" class="headerlink" title="지속성 (Persistence)"></a>지속성 (Persistence)</h2>
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/TIL/" rel="tag"># TIL</a>
+              <a href="/tags/OS/" rel="tag"># OS</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2020/04/30/os/" rel="prev" title="OS (Three Easy Pieces)">
+                  <i class="fa fa-chevron-left"></i> OS (Three Easy Pieces)
+                </a>
+            </div>
+            <div class="post-nav-item">
+            </div>
+          </div>
+    </footer>
+  </article>
+</div>
+
+
+
+
+
+
+</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+
+
+<div class="copyright">
+  &copy; 
+  <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">wiggleji</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/muse/" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" integrity="sha256-XL2inqUJaslATFnHdJOi9GfQ60on8Wx1C2H8DYiN1xY=" crossorigin="anonymous"></script>
+<script src="/js/comments.js"></script><script src="/js/utils.js"></script><script src="/js/motion.js"></script><script src="/js/schemes/muse.js"></script><script src="/js/next-boot.js"></script>
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+</body>
+</html>
