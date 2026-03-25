@@ -1,0 +1,20 @@
+{
+  "home": "Home",
+  "blog": "Blog",
+  "tags": "Tags",
+  "categories": "Categories",
+  "about": "About",
+  "readMore": "Read more",
+  "postedOn": "Posted on",
+  "taggedWith": "Tagged with",
+  "allTags": "All Tags",
+  "allCategories": "All Categories",
+  "postsTaggedWith": "Posts tagged with",
+  "postsInCategory": "Posts in category",
+  "tableOfContents": "Table of Contents",
+  "recentPosts": "Recent Posts",
+  "noPosts": "No posts found.",
+  "copyright": "All rights reserved.",
+  "language": "Language",
+  "switchLanguage": "한국어"
+}

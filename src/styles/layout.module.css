@@ -1,0 +1,53 @@
+/* Main layout container */
+.siteWrapper {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.main {
+  flex: 1;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: var(--space-xl) var(--space-lg);
+}
+
+/* List page layout: sidebar + content */
+.listLayout {
+  display: grid;
+  grid-template-columns: var(--sidebar-width) 1fr;
+  gap: var(--space-2xl);
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+/* Post page layout: content + TOC */
+.postLayout {
+  display: grid;
+  grid-template-columns: 1fr var(--toc-width);
+  gap: var(--space-2xl);
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.content {
+  min-width: 0;
+  max-width: var(--content-max-width);
+}
+
+@media (max-width: 1024px) {
+  .listLayout {
+    grid-template-columns: 1fr;
+  }
+
+  .postLayout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .main {
+    padding: var(--space-md);
+  }
+}
