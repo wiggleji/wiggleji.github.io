@@ -13,6 +13,7 @@ interface TOCProps {
   tableOfContents: {
     items?: TOCItem[];
   };
+  variant?: "desktop" | "mobile";
 }
 
 const flattenItems = (items: TOCItem[]): string[] => {
@@ -50,7 +51,7 @@ const TOCItems: React.FC<{ items: TOCItem[]; activeId: string }> = ({
   </ul>
 );
 
-const TOC: React.FC<TOCProps> = ({ tableOfContents }) => {
+const TOC: React.FC<TOCProps> = ({ tableOfContents, variant = "desktop" }) => {
   const { t } = useTranslation();
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -65,15 +66,8 @@ const TOC: React.FC<TOCProps> = ({ tableOfContents }) => {
 
   if (items.length === 0) return null;
 
-  return (
-    <>
-      {/* Desktop: sticky sidebar */}
-      <nav className={styles.tocWrapper} aria-label="Table of contents">
-        <h3 className={styles.tocTitle}>{t("tableOfContents")}</h3>
-        <TOCItems items={items} activeId={activeId} />
-      </nav>
-
-      {/* Mobile: collapsible */}
+  if (variant === "mobile") {
+    return (
       <div className={styles.tocMobile}>
         <button
           className={styles.tocMobileToggle}
@@ -89,7 +83,14 @@ const TOC: React.FC<TOCProps> = ({ tableOfContents }) => {
           </div>
         )}
       </div>
-    </>
+    );
+  }
+
+  return (
+    <nav className={styles.tocWrapper} aria-label="Table of contents">
+      <h3 className={styles.tocTitle}>{t("tableOfContents")}</h3>
+      <TOCItems items={items} activeId={activeId} />
+    </nav>
   );
 };
 

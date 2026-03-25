@@ -36,8 +36,7 @@ const BlogPostTemplate: React.FC<PageProps<BlogPostData>> = ({
     <Layout>
       <div className={layoutStyles.postLayout}>
         <article className={layoutStyles.content}>
-          {/* Mobile TOC */}
-          <TOC tableOfContents={tableOfContents} />
+          <TOC tableOfContents={tableOfContents} variant="mobile" />
 
           <header className={postStyles.postHeader}>
             <h1 className={postStyles.postHeaderTitle}>{frontmatter.title}</h1>
@@ -60,8 +59,7 @@ const BlogPostTemplate: React.FC<PageProps<BlogPostData>> = ({
           </div>
         </article>
 
-        {/* Desktop TOC */}
-        <TOC tableOfContents={tableOfContents} />
+        <TOC tableOfContents={tableOfContents} variant="desktop" />
       </div>
     </Layout>
   );
