@@ -1,0 +1,780 @@
+---
+title: "Resilience 백서"
+date: 2026-03-19
+slug: "20260319_resilience"
+category: "개발"
+tags: ["resilience4j", "circuit-breaker", "fault-tolerance", "kotlin", "jvm"]
+description: "Resilience4j의 5가지 방어 패턴과 장애 시나리오별 적용 전략"
+---
+
+
+
+# 무엇을 설명하는가
+
+이번 글에서는 Resilience4j 의 기능을 소개하며 애플리케이션 레벨의 장애 내성(fault tolerance)을 설명한다.
+
+Resilience4j가 제공하는 핵심 5가지 방어 패턴 <br /> — **Rate Limiter**, **Bulkhead**, **Circuit Breaker**, **Time Limiter**, **Retry** — 을 순서대로 설명하고, 각각 **요청 생명주기의 어느 시점에 개입하여 방어하는지**, 그리고 실제 운영 환경에서 어떤 상황에 적용하는지 사례를 정리한다.
+
+
+# 왜 작성하는가
+
+프로그램 개발을 하다보면, 대부분 독립적인 어플리케이션으로 개발되는 경우는 드물다. 외부 서비스와 협력하거나, 외부 데이터를 가져와야 하는 경우가 많으며, 이는 서비스의 목적과 수익성과 직접적으로 연결되는 경우가 많다. (사실 필수라고 할 수 있다)
+
+이 외부 서비스 영역은 개발자가 관리할 수 없는 영역이기에, 네트워크 혹은 외부 서비스의 에러에 대응하는건 사실상 불가능하다.
+
+> 필자는 한번 정부 사이트 데이터를 직접 가져오면서 **"내가 데이터의 정합성과 흐름을 제어할 수 있지 않을까"** 라는 생각으로 개발하였으나 정부 사이트 개편 날 모든 데이터가 꼬이고 로직을 갈아엎은 경험이 있다 😇
+
+<div className="image-row">
+  <img src="/images/20260319_resilience/opening_0.jpeg" width="200" />
+  <img src="/images/20260319_resilience/opening_1.jpeg" width="200" />
+  <img src="/images/20260319_resilience/opening_2.jpeg" width="200" />
+</div>
+
+*경경수의 개발만화*
+
+
+<br />
+
+결국 외부 장애를 해결하기보다 우리 서비스의 영향을 최소화하는게 가장 현실적인 방법이다.
+이 중 JVM 의 Resilience4j 의 기능을 통해, 현실적인 비유를 통해 로직에 접근하고 단순한 설정이 아니라 **"어떤 장애 시나리오를 어디까지 허용할 것인가"** 에 대한 결정할 수 있는 사고력을 길러보기 위해 글을 작성한다.
+
+이 글은 설정 레퍼런스가 아니다. 각 패턴이 **현실의 어떤 문제를 해결하는지**, 조합했을 때 **왜 순서가 중요한지**를 실전 사례 중심으로 풀어쓴다.
+
+---
+
+# 서론
+
+서버의 구성은 모놀리스부터 마이크로서비스, 그리고 여러 인프라의 구성으로 이뤄진다.
+만약 서비스가 의존하는 외부 시스템 하나가 느려지거나 다운되면 우리 서비스 또한 연쇄적으로 무너질 수 있다. 이를 Cascading Failure 라고 한다.
+
+이를 방지하기 위해, 크게 인프라 계층과 어플리케이션 계층에서 여러 안전장치를 마련할 수 있다.
+
+인프라 계층의 경우, 모니터링 시스템과 health check 등이 있을 것이고,
+우리가 살펴볼 Resilience4j는 **애플리케이션 코드 레벨**에서 해결한다. 
+
+작동 방식은 인프라 계층에서 사용되는 기능의 컨셉과 작동방식에서 크게 어긋나지 않기에, 이러한 컨셉을 알아두면 다른 장애 대응, 흐름제어 등에도 큰 도움이 된다.
+
+
+> **핵심 전제 — Spring AOP Proxy**
+> 모든 어노테이션(`@Retry`, `@CircuitBreaker` 등)은 **다른 Bean을 통한 호출**일 때만 동작한다. 같은 클래스 내부에서 `this.method()`로 호출하면 Proxy를 우회해 어노테이션이 무시된다. `@Transactional`, `@Cacheable`, `@Async` 모두 동일한 원리다. 이를 방지하기 위해 별도 Bean으로 분리해야 한다.
+> <br /> 공식문서 링크: https://docs.spring.io/spring-framework/reference/data-access/transaction/declarative/annotations.html
+
+---
+
+# 본론
+
+## 00. 사전 준비 — 의존성과 모니터링
+
+패턴을 설명하기 전에 먼저 프로젝트에 Resilience4j를 세팅한다.
+
+### 의존성
+
+```kotlin
+dependencies {
+    implementation("org.springframework.boot:spring-boot-starter-aop")          // AOP 프록시 필수
+    implementation("io.github.resilience4j:resilience4j-spring-boot3:2.2.0")   // Resilience4j
+    implementation("org.springframework.boot:spring-boot-starter-actuator")     // 상태 모니터링
+}
+```
+
+`spring-boot-starter-aop`가 빠지면 `@CircuitBreaker`, `@Retry` 등의 어노테이션이 프록시로 감싸지지 않아서 아무런 효과가 없다. 잊지말고 추가하자.
+
+### Actuator 설정
+
+```yaml
+management:
+  endpoints.web.exposure.include: health,circuitbreakers,circuitbreakerevents,retries
+  health.circuitbreakers.enabled: true
+```
+
+이 설정이 있어야 CB 상태 전환, 실패율, Retry 이벤트 등을 런타임에 확인할 수 있다. 장애 발생 시 **CB가 OPEN인지 CLOSED인지 모르는 채로 디버깅하는 것**과 **Actuator로 즉시 확인하는 것**은 모니터링 및 대응 속도에 큰 영향을 준다.
+
+```bash
+# CB 상태 포함 헬스체크
+GET /actuator/health
+
+# 특정 CB 이벤트 히스토리
+GET /actuator/circuitbreakerevents/paymentService
+
+# Prometheus 메트릭 (Grafana 대시보드 연동)
+GET /actuator/metrics/resilience4j.circuitbreaker.state
+GET /actuator/metrics/resilience4j.circuitbreaker.failure.rate
+```
+
+### 전체 설정 골격
+
+```yaml
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 10
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10000
+        permittedNumberOfCallsInHalfOpenState: 3
+        minimumNumberOfCalls: 5
+        registerHealthIndicator: true
+      strict:
+        baseConfig: default
+        failureRateThreshold: 30
+        waitDurationInOpenState: 30000
+    instances:
+      paymentService: { baseConfig: strict }
+      notifyService:  { baseConfig: default }
+
+  retry:
+    configs:
+      default:
+        maxAttempts: 3
+        waitDuration: 1000
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 2
+    instances:
+      notifyService: { baseConfig: default }
+
+  bulkhead:
+    instances:
+      inventoryService:
+        maxConcurrentCalls: 20
+        maxWaitDuration: 100ms
+
+  thread-pool-bulkhead:
+    instances:
+      reportService:
+        coreThreadPoolSize: 4
+        maxThreadPoolSize: 8
+        queueCapacity: 20
+
+  timelimiter:
+    instances:
+      reportService:
+        timeoutDuration: 3s
+        cancelRunningFuture: true
+
+  ratelimiter:
+    instances:
+      kakaoApi:
+        limitForPeriod: 100
+        limitRefreshPeriod: 1s
+        timeoutDuration: 500ms
+```
+
+`configs.default`로 공통 프로필을 만들고, 서비스 특성에 따라 `strict` 같은 변형을 파생시키는 구조다. resilience4j 를 적용해야하는 서비스에 사용될 설정을 정의하는 인스턴스 역할로 `instances`, 설정값의 공통 분모 역할로 `configs` 를 정의해서 쓸 수 있다.
+
+각 설정 값의 의미와 패턴/타임라인을 그려보고, 어떤 장애를 막는지 하나씩 살펴보자.
+
+---
+
+## 01. Rate Limiter — 실행 전, 순간 판단
+> 단위 시간당 호출 횟수를 제한하여 외부 API의 quota 초과를 방지한다.
+
+### 시나리오
+
+> **환경**: 알림 서비스가 카카오 알림톡 API를 호출한다.<br />
+> **조건**: 카카오 API는 초당 1,000건의 호출 제한이 있다.<br />
+> **상황**: 블랙프라이데이 주문 폭주로 알림 발송이 초당 1,500건까지 치솟았다.<br />
+> **문제**: 초과분 500건이 429로 거부되고, 429 응답을 받은 스레드가 헛되이 소비되며, 반복되면 외부 API 측에서 우리 서비스를 일시 차단할 수 있다.
+
+### 흐름
+
+<img src="/images/20260319_resilience/ratelimit_flow.svg" alt="Rate Limiter Flow" />
+
+요청이 들어오면 현재 주기의 남은 quota를 확인한다. 여유가 있으면 즉시 통과시키고, <br />
+Rate Limiter의 역할은 거기서 끝난다 — **실행 중에는 아무것도 점유하지 않는다.** <br /> quota가 없으면 `timeoutDuration`만큼 대기한 후에도 슬롯이 안 열리면 `RequestNotPermittedException`을 던진다.
+
+### 타임라인
+
+<img src="/images/20260319_resilience/ratelimit_timeline.svg" alt="Rate Limiter Timeline" />
+
+주기 내 5건이 소비된 후 6번째 요청이 들어오면 `timeoutDuration`만큼 대기한다. 주기 리셋 전에 타임아웃이 먼저 소진되면 예외, 리셋되면 quota가 다시 채워진다. **Rate Limiter의 미사용 슬롯은 다음 주기로 이월되지 않고 소멸한다.**
+
+### 시나리오 적용
+
+Rate Limiter를 발신 측에 걸어서 `limitForPeriod: 1000`으로 제한하면, 초당 1,500건 중 1,000건만 카카오로 나가고 나머지 500건은 `RequestNotPermittedException`으로 빠진다. 429가 발생하지 않으니 CB 실패 카운트도 올라가지 않는다.
+
+Rate Limiter에 걸린 요청은 "외부가 고장 난 게 아니라 우리가 너무 많이 보낸 것"이다. Retry와의 차이점이기도 하다.
+> Retry는 "실패했으니 바로 다시", Rate Limiter fallback은 "지금은 안 되니 나중에".
+
+### 설정 및 코드
+
+```yaml
+resilience4j:
+  ratelimiter:
+    instances:
+      kakaoApi:
+        limitForPeriod: 100        # 주기당 허용 횟수
+        limitRefreshPeriod: 1s     # 1초마다 quota 리셋
+        timeoutDuration: 500ms     # 슬롯 대기 시간 (초과 시 예외)
+```
+
+```kotlin
+// ── 방법 1: Annotation ──
+// fallbackMethod는 같은 클래스 내에 위치, 시그니처는 원본과 동일 + 예외 파라미터 1개
+@Service
+class NotificationService {
+
+    @RateLimiter(name = "kakaoApi", fallbackMethod = "rateFallback")
+    fun sendMessage(userId: String, msg: String): String {
+        return kakaoClient.send(userId, msg)
+    }
+
+    private fun rateFallback(userId: String, msg: String, ex: RequestNotPermittedException): String {
+        log.warn("Rate limit exceeded for {}: {}", userId, ex.message)
+        return "rate_limited"
+    }
+}
+
+// ── 방법 2: Registry 직접 사용 ──
+// AOP 없이 함수형으로 래핑. 테스트에서 Mock 주입이 더 쉽고, 적용 범위를 코드로 명시적 제어 가능
+@Service
+class NotificationService(
+    private val rateLimiterRegistry: RateLimiterRegistry,
+    private val kakaoClient: KakaoClient
+) {
+    private val rateLimiter = rateLimiterRegistry.rateLimiter("kakaoApi")
+
+    fun sendMessage(userId: String, msg: String): String {
+        val decorated = RateLimiter.decorateSupplier(rateLimiter) {
+            kakaoClient.send(userId, msg)
+        }
+        return Try.ofSupplier(decorated)
+            .recover(RequestNotPermittedException::class.java) { ex ->
+                log.warn("Rate limited: {}", ex.message)
+                "rate_limited"
+            }.get()
+    }
+}
+```
+
+---
+
+## 02. Bulkhead — 전 획득, 중 점유, 후 반환
+> 동시 실행 수를 제한하여 특정 서비스가 전체 스레드 풀을 독점하지 못하게 격리한다.
+
+### 시나리오
+
+> **환경**: 하나의 Spring Boot 서버에서 결제, 재고 조회, 리포트 생성 API를 서빙한다.<br />
+> **조건**: Tomcat 스레드 풀은 200개. 리포트 생성은 무거운 JOIN 쿼리로 건당 20초 소요.<br />
+> **상황**: 월말에 관리자 10명이 동시에 리포트를 뽑는다.<br />
+> **문제**: 스레드 10개가 각각 20초씩 묶이고, 같은 시간에 들어온 결제와 재고 조회가 스레드를 잡지 못해 대기열에 쌓인다.
+
+### 흐름
+
+<img src="/images/20260319_resilience/bulkhead_flow.svg" alt="Bulkhead Flow" />
+
+슬롯을 획득하고 → Method와 External 호출이 끝날 때까지 점유하고 → 성공/실패 무관하게 반환한다.<br /> Rate Limiter와의 결정적 차이는 **실행이 끝날 때까지 슬롯을 잡고 있다**는 점이다.
+
+### 타임라인
+
+<img src="/images/20260319_resilience/bulkhead_timeline.svg" alt="Bulkhead Timeline" />
+
+slot 1~3이 모두 점유된 상태에서 req 4가 도착하면 `maxWaitDuration`만큼 대기한다. 그 사이 slot 2가 반환되면 req 4가 슬롯을 확보한다. req 5는 대기 중에 슬롯이 열리지 않으면 `BulkheadFullException`이 발생한다.
+
+핵심은 **느린 외부 서비스가 슬롯을 장기 점유한다**는 점이다. 외부 API가 평소 100ms에 응답하다가 갑자기 10초씩 걸리면, <br />`maxConcurrentCalls: 20`으로 설정한 슬롯 20개가 2초 만에 전부 고갈된다. 이래서 TimeLimiter와 세트로 써야 한다.
+
+### 시나리오 적용
+
+Bulkhead로 "리포트 생성은 동시 4개까지만"으로 제한하면, 관리자 10명이 동시에 뽑아도 스레드 4개만 리포트에 묶인다. <br />나머지 196개 스레드는 결제와 재고 조회를 위해 확보된다. 배의 격벽(bulkhead)처럼, 한 구획이 침수돼도 다른 구획은 지킨다.
+
+Semaphore Bulkhead는 메인 스레드에서 동시 실행 수만 제한한다. ThreadPool Bulkhead는 **전용 스레드풀을 만들어 메인 풀과 완전히 격리**한다. <br />리포트 생성처럼 오래 걸리는 작업은 ThreadPool로 격리해야 메인 풀의 결제/조회가 영향받지 않는다.
+
+### 설정 및 코드
+
+```yaml
+resilience4j:
+  # Semaphore — 동기 호출 (WebMVC)
+  bulkhead:
+    instances:
+      inventoryService:
+        maxConcurrentCalls: 20   # 동시 최대 20개
+        maxWaitDuration: 100ms   # 슬롯 대기 시간
+
+  # ThreadPool — 비동기 호출 (TimeLimiter와 함께)
+  thread-pool-bulkhead:
+    instances:
+      reportService:
+        coreThreadPoolSize: 4
+        maxThreadPoolSize: 8
+        queueCapacity: 20
+```
+
+```kotlin
+// ── 방법 1: Annotation — Semaphore (동기) ──
+// 기본 타입. 메인 스레드에서 동시 실행 수만 제한한다
+@Service
+class InventoryService {
+
+    @Bulkhead(name = "inventoryService", fallbackMethod = "stockFallback")
+    fun checkStock(itemId: String): StockResponse =
+        inventoryClient.check(itemId)
+
+    private fun stockFallback(itemId: String, ex: BulkheadFullException): StockResponse =
+        StockResponse(available = false, message = "서버 과부하, 잠시 후 재시도")
+}
+
+// ── 방법 1: Annotation — ThreadPool (비동기) ──
+// type = THREADPOOL이면 전용 스레드풀에서 실행. 
+// 프록시가 결과를 CompletableFuture로 감싸 반환하므로 내부에서 supplyAsync를 쓸 필요가 없다.
+@Service
+class ReportService {
+
+    @Bulkhead(name = "reportService", type = Bulkhead.Type.THREADPOOL)
+    @TimeLimiter(name = "reportService")
+    fun generate(req: ReportRequest): CompletableFuture<Report> =
+        CompletableFuture.completedFuture(reportRepository.heavyQuery(req))
+}
+
+// ── 방법 2: Registry 직접 사용 ──
+@Service
+class InventoryService(
+    private val bulkheadRegistry: BulkheadRegistry,
+    private val threadPoolBulkheadRegistry: ThreadPoolBulkheadRegistry
+) {
+    private val semaphoreBulkhead = bulkheadRegistry.bulkhead("inventoryService")
+    private val threadPoolBulkhead = threadPoolBulkheadRegistry.bulkhead("reportService")
+
+    // Semaphore: decorateSupplier로 래핑
+    fun checkStock(itemId: String): StockResponse {
+        val decorated = Bulkhead.decorateSupplier(semaphoreBulkhead) {
+            inventoryClient.check(itemId)
+        }
+        return Try.ofSupplier(decorated)
+            .recover(BulkheadFullException::class.java) {
+                StockResponse(available = false)
+            }.get()
+    }
+
+    // ThreadPool: 전용 풀에서 비동기 실행
+    fun generateAsync(req: ReportRequest): CompletableFuture<Report> {
+        val decorated = ThreadPoolBulkhead.decorateSupplier(threadPoolBulkhead) {
+            reportRepository.heavyQuery(req)
+        }
+        return decorated.get()
+            .exceptionally { Report(status = "UNAVAILABLE") }
+    }
+}
+```
+
+---
+
+## 03. Circuit Breaker — 전 차단 + 후 기록 (두 시점)
+> 연속 실패를 감지하면 호출 자체를 차단하여 죽은 서비스로의 요청을 막는다.
+
+### 시나리오
+
+> **환경**: 커머스 서비스가 PG사 API를 통해 결제를 처리한다.<br />
+> **조건**: 초당 100건의 결제 요청이 들어온다. PG 호출 타임아웃은 5초로 설정돼 있다.<br />
+> **상황**: PG사가 서버 점검에 들어갔다. 모든 결제 요청이 `ConnectException`을 던진다.<br />
+> **문제**: 초당 100건이 이미 죽은 PG에 계속 요청을 보낸다. 매 요청마다 타임아웃까지 스레드가 묶이고, 커넥션 풀이 고갈되며, <br />        결제뿐 아니라 다른 API까지 응답 불능에 빠진다.
+
+### 흐름
+
+<img src="/images/20260319_resilience/circuitbreaker_flow.svg" alt="Circuit Breaker Flow" />
+
+**CLOSED (정상 운영)**: 모든 호출을 통과시키고, 결과(성공/실패)를 sliding window에 기록한다. 실패율이 threshold를 넘으면 OPEN으로 전환한다.
+
+**OPEN (차단)**: 모든 호출을 즉시 차단하고 `CallNotPermittedException`을 던진다. 네트워크 호출 없이 수 마이크로초 만에 응답한다. `waitDurationInOpenState`가 경과하면 HALF-OPEN으로 전환한다.
+
+**HALF-OPEN (탐색)**: `permittedNumberOfCallsInHalfOpenState`만큼의 탐색 호출을 보낸다. 외부 서비스가 살아났는지 확인하는 것이다. 성공하면 CLOSED로 복구, 실패하면 다시 OPEN으로 돌아간다.
+
+### 타임라인
+
+<img src="/images/20260319_resilience/circuitbreaker_timeline.svg" alt="Circuit Breaker Timeline" />
+
+sliding window 10건 중 5건이 실패하면 실패율 50% >= threshold → OPEN 전환. 10초간 모든 호출을 차단한 후 HALF-OPEN에서 3건의 탐색 호출을 보낸다. 탐색이 모두 성공하면 CLOSED로 복구한다.
+
+`minimumNumberOfCalls: 5`가 중요하다. 서비스 시작 직후 첫 2건이 모두 실패하면 실패율 100%인데, 이때 바로 OPEN이 되면 안 된다. 최소 호출 수를 채운 후에야 실패율을 판단하도록 하는 안전장치다.
+
+### 시나리오 적용
+
+Circuit Breaker가 **"PG는 지금 죽어있다"는 판단을 내리고 호출 자체를 차단**한다. OPEN 상태에서는 네트워크 호출 없이 수 마이크로초(μs) 만에 fallback을 반환한다. 초당 100건의 요청이 각각 2회씩 재시도되어 총 300건이 될 상황을 0건으로 줄이고, 스레드는 즉시 해방된다.
+
+`waitDurationInOpenState` 후 HALF-OPEN에서 탐색 호출을 보내 PG 복구 여부를 확인한다. 살아났으면 CLOSED로 자동 복구, 아직이면 다시 OPEN.
+
+`ignoreExceptions`에 `BusinessException`을 넣은 이유: "잔액 부족"이나 "중복 주문" 같은 비즈니스 오류는 외부 시스템의 장애가 아니다. 이것까지 실패로 카운트하면 정상적인 비즈니스 거절이 많은 결제 서비스에서 CB가 오동작한다.
+
+`strict` 프로필은 결제용이다. 실패율 30%만 돼도 차단하고, OPEN 상태를 30초 유지한다. <br />"실패하는 결제 요청을 계속 보내는 것"보다 "빠르게 차단하고 UNKNOWN 상태로 저장한 뒤 <br />Recovery 스케줄러에 맡기는 것"이 사용자 경험과 데이터 정합성 모두에서 낫다.
+
+### 설정 및 코드
+
+```yaml
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        slidingWindowType: COUNT_BASED    # 또는 TIME_BASED
+        slidingWindowSize: 10
+        failureRateThreshold: 50          # 50% 실패 시 OPEN
+        slowCallDurationThreshold: 3000   # 3초 이상 = slow
+        slowCallRateThreshold: 80
+        waitDurationInOpenState: 10000    # OPEN 유지 10초
+        permittedNumberOfCallsInHalfOpenState: 3
+        minimumNumberOfCalls: 5
+        recordExceptions:
+          - java.io.IOException
+          - java.util.concurrent.TimeoutException
+        ignoreExceptions:
+          - com.example.BusinessException  # 비즈니스 예외는 카운트 제외
+      strict:                              # 결제 등 민감한 서비스용
+        baseConfig: default
+        failureRateThreshold: 30
+        waitDurationInOpenState: 30000
+    instances:
+      paymentService:
+        baseConfig: strict
+      inventoryService:
+        baseConfig: default
+```
+
+```kotlin
+// ── 방법 1: Annotation ──
+// fallback을 예외 타입별로 여러 개 정의 가능 — 가장 구체적인 타입이 우선 매칭됨
+@Service
+class PaymentService(private val client: PgClient) {
+
+    @CircuitBreaker(name = "paymentService", fallbackMethod = "paymentFallback")
+    fun charge(req: PaymentRequest): PaymentResponse =
+        client.charge(req)
+
+    // OPEN 상태에서 차단된 경우 — 네트워크 호출 없이 즉시 반환
+    private fun paymentFallback(req: PaymentRequest, ex: CallNotPermittedException): PaymentResponse {
+        log.warn("CB OPEN — payment blocked")
+        return PaymentResponse(status = PENDING, message = "결제 시스템 점검 중")
+    }
+
+    // recordExceptions에 해당하는 예외 (IOException, TimeoutException 등)
+    private fun paymentFallback(req: PaymentRequest, ex: Exception): PaymentResponse {
+        log.warn("CB fallback: {}", ex.message)
+        return PaymentResponse(status = PENDING, message = "결제 대기 중")
+    }
+}
+
+// ── 방법 2: Registry 직접 사용 ──
+// 상태 전환 이벤트 구독, 런타임 메트릭 조회, 강제 상태 변경 등 세밀한 제어가 필요할 때
+@Service
+class PaymentService(
+    private val circuitBreakerRegistry: CircuitBreakerRegistry,
+    private val pgClient: PgClient
+) {
+    private val cb = circuitBreakerRegistry.circuitBreaker("paymentService")
+
+    fun charge(req: PaymentRequest): PaymentResponse {
+        val decorated = CircuitBreaker.decorateSupplier(cb) { pgClient.charge(req) }
+        return Try.ofSupplier(decorated)
+            .recover(CallNotPermittedException::class.java) {
+                PaymentResponse(status = PENDING)
+            }
+            .recover(Exception::class.java) { ex ->
+                log.warn("CB error: {}", ex.message)
+                PaymentResponse(status = PENDING)
+            }.get()
+    }
+
+    @PostConstruct
+    fun setupMonitoring() {
+        // 상태 전환 이벤트 구독 — Slack 알림이나 로그 알림 연동에 유용
+        cb.eventPublisher
+            .onStateTransition { e ->
+                log.warn("CB [{}] {} → {}", e.circuitBreakerName,
+                    e.stateTransition.fromState, e.stateTransition.toState)
+            }
+            .onCallNotPermitted { log.warn("Call blocked — CB is OPEN") }
+
+        // 런타임 강제 상태 변경 (테스트/운영 비상용)
+        // cb.transitionToOpenState()
+        // cb.transitionToClosedState()
+    }
+}
+```
+
+---
+
+## 04. Time Limiter — 실행 중, Future 감시
+> 비동기 작업의 최대 실행 시간을 제한하여 느린 요청이 스레드를 장기 점유하지 못하게 한다.
+
+### 시나리오
+
+> **환경**: 관리자용 월간 매출 리포트 API가 있다. 비동기(`CompletableFuture`)로 처리된다.<br />
+> **조건**: 평소 2초면 끝나지만, 월말 데이터 몰림 시 간혹 30초까지 걸린다.<br />
+> **상황**: 월말에 동시 리포트 요청 다수가 30초짜리 쿼리를 잡았다.<br />
+> **문제**: 비동기 작업이 30초씩 스레드를 점유하면서 후속 요청이 모두 대기열에 쌓인다. <br />        느린 요청 하나하나의 **점유 시간을 제한하는 장치가 없다.**
+
+### 흐름
+
+<img src="/images/20260319_resilience/timelimiter_flow.svg" alt="Time Limiter Flow" />
+
+`CompletableFuture`의 실행 시간을 감시한다. `timeoutDuration` 이내에 완료되면 정상 반환, 초과하면 `TimeoutException`을 던지고 `cancelRunningFuture=true`이면 `Future.cancel(true)`로 스레드 인터럽트를 시도한다.
+
+**`CompletableFuture`(비동기) 전용**이다. 동기 메서드에는 단독으로 동작하지 않는다.
+
+### 타임라인
+
+<img src="/images/20260319_resilience/timelimiter_timeline.svg" alt="Time Limiter Timeline" />
+
+- Case 1: Future가 2초 만에 완료 → 정상 반환. TimeLimiter는 아무 일도 하지 않는다.
+- Case 2: Future가 3초를 넘김 → `TimeoutException` 발생, cancel 호출. 클라이언트는 즉시 타임아웃 응답을 받고, 서버 측 Future는 취소된다.
+
+`cancelRunningFuture: true`가 기본값이지만, 실제로 cancel이 즉시 스레드를 중단시키지는 않는다. <br />`Thread.interrupt()`를 보내는 것이므로, 실행 중인 코드가 `InterruptedException`을 처리하지 않으면 계속 돌아간다. <br />DB 쿼리 중이라면 JDBC 드라이버가 인터럽트를 지원하는지 확인해야 한다.
+
+### 시나리오 적용
+
+TimeLimiter를 `timeoutDuration: 3s`로 걸면, 30초짜리 쿼리가 슬롯을 30초 점유하는 대신 3초 만에 `TimeoutException`으로 끊긴다. 8개 슬롯이 4분간 막히는 상황이 최대 3초 점유로 바뀌고, 후속 요청이 슬롯을 빠르게 확보할 수 있다.
+
+Bulkhead가 **"동시에 몇 개"** 를 제한한다면, TimeLimiter는 **"한 건이 얼마나 오래"** 를 제한한다. 둘 다 있어야 슬롯 수와 점유 시간 모두 통제할 수 있다. Bulkhead 없이 TimeLimiter만 쓰면 동시 실행 수가 무제한이고, TimeLimiter 없이 Bulkhead만 쓰면 느린 요청이 슬롯을 영원히 물고 있을 수 있다.
+
+### 설정 및 코드
+
+```yaml
+resilience4j:
+  timelimiter:
+    instances:
+      reportService:
+        timeoutDuration: 3s
+        cancelRunningFuture: true   # 타임아웃 시 Future 취소
+
+  thread-pool-bulkhead:             # 함께 쓰는 것이 일반적
+    instances:
+      reportService:
+        coreThreadPoolSize: 4
+        maxThreadPoolSize: 8
+        queueCapacity: 20
+```
+
+```kotlin
+// ── 방법 1: Annotation ──
+// ThreadPool Bulkhead와 세트로 사용. cancelRunningFuture=true이면 Future.cancel(true) 호출
+// THREADPOOL 타입 프록시가 전용 스레드풀에서 실행하므로 supplyAsync 불필요 — completedFuture로 값만 감싼다
+@Service
+class ReportService {
+
+    @Bulkhead(name = "reportService", type = Bulkhead.Type.THREADPOOL)
+    @TimeLimiter(name = "reportService", fallbackMethod = "reportFallback")
+    fun generate(req: ReportRequest): CompletableFuture<Report> =
+        CompletableFuture.completedFuture(reportRepository.heavyQuery(req))
+
+    private fun reportFallback(req: ReportRequest, ex: TimeoutException)
+        : CompletableFuture<Report> =
+        CompletableFuture.completedFuture(
+            Report(status = "TIMEOUT", message = "보고서 생성 시간 초과")
+        )
+}
+
+// ── 방법 2: Registry 직접 사용 ──
+// decorateFutureSupplier로 래핑. ScheduledExecutorService에 타임아웃 작업을 예약
+@Service
+class ReportService(
+    private val timeLimiterRegistry: TimeLimiterRegistry,
+    private val executor: ScheduledExecutorService
+) {
+    private val timeLimiter = timeLimiterRegistry.timeLimiter("reportService")
+
+    fun generate(req: ReportRequest): Report {
+        val future: Callable<CompletableFuture<Report>> = Callable {
+            CompletableFuture.supplyAsync { reportRepository.heavyQuery(req) }
+        }
+        return Try.of(TimeLimiter.decorateFutureSupplier(timeLimiter, executor, future))
+            .recover(TimeoutException::class.java) {
+                Report(status = "TIMEOUT")
+            }.get()
+    }
+}
+```
+
+---
+
+## 05. Retry — 실행 후, 예외 확인 후 재호출
+> 일시적 실패(transient failure) 시 자동으로 재시도하여 순간적인 장애를 사용자에게 노출하지 않는다.
+
+### 시나리오
+
+> **환경**: 커머스 서비스가 PG사 API를 통해 결제를 처리한다.<br />
+> **조건**: PG사 API는 간헐적으로 `SocketTimeoutException`을 던진다. 네트워크 일시 지연이나 PG 내부 순간 과부하로, <br />        0.5초 후 재요청하면 성공하는 transient failure다.<br />
+> **상황**: 사용자가 결제 버튼을 누르고 PG 호출이 `SocketTimeoutException`으로 실패했다.<br />
+> **문제**: 곧바로 "결제 실패"를 반환하면 사용자가 다시 결제 버튼을 눌러야 하고, 이탈률이 올라간다.
+
+### 흐름
+
+<img src="/images/20260319_resilience/retry_flow.svg" alt="Retry Flow" />
+
+`Method 실행 → 예외 발생 → backoff 대기 → 재시도`를 반복한다. <br />`maxAttempts`를 모두 소진하면 마지막 예외를 그대로 전파한다. 성공하면 즉시 루프를 탈출하고 결과를 반환한다.
+
+### 타임라인
+
+<img src="/images/20260319_resilience/retry_timeline.svg" alt="Retry Timeline" />
+
+`attempt 1` 실패 → 1초 대기 → `attempt 2` 실패 → 2초 대기(x2 backoff) → `attempt 3`
+<br />여기서 성공하면 즉시 반환, 실패하면 `maxAttempts` 소진으로 예외가 전파된다
+
+`maxAttempts: 3`은 "최초 1회 + 재시도 2회"로 해석한다. <br />즉, resilience4j에서는 첫 번째 호출도 attempt로 인정한다.
+
+### 시나리오 적용
+
+`maxAttempts: 3`으로 설정하면 첫 호출이 `SocketTimeoutException`으로 실패해도 자동으로 2번 더 시도한다. <br />transient failure라면 높은 확률로 재시도에서 성공하고, 사용자는 실패를 인지하지 못한 채 결제가 완료된다.
+
+단, Retry는 양날의 검이다. **멱등하지 않은 API에 재시도하면 이중 처리가 발생한다.** PG 결제 요청에 idempotency-key 없이 재시도하면 카드에서 두 번 빠진다. <br />transactionKey를 멱등성 키로 사용해야 하는 이유가 이것이다.
+
+재시도 간격도 중요하다. 고정 간격(fixed delay)이면 장애 복구 시점에 재시도 요청이 한꺼번에 몰린다. <br />Exponential backoff(1s → 2s → 4s)를 쓰면 간격이 점점 벌어지고, 여기에 jitter(랜덤 편차)를 추가하면 <br />여러 인스턴스의 재시도가 같은 시각에 몰리는 **thundering herd** 문제까지 완화된다.
+
+### 설정 및 코드
+
+```yaml
+resilience4j:
+  retry:
+    instances:
+      externalApi:
+        maxAttempts: 3                   # 최초 1회 + 재시도 2회
+        waitDuration: 1000               # 기본 대기 1초
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 2   # 1s → 2s → 4s
+        exponentialMaxWaitDuration: 10000
+        retryExceptions:
+          - java.io.IOException
+          - feign.RetryableException
+        ignoreExceptions:
+          - com.example.BadRequestException  # 4xx는 재시도 무의미
+```
+
+> `ignoreExceptions`에 `BadRequestException`을 넣은 이유: 400 Bad Request는 우리가 잘못 보낸 것이다. 같은 요청을 다시 보내도 똑같이 400이 온다. 재시도는 **일시적 장애(transient failure)** 에만 의미가 있다. 비즈니스 오류, 클라이언트 오류는 재시도 대상이 아니다.
+
+```kotlin
+// ── 방법 1: Annotation (CB와 조합) ──
+// 기본 순서: Retry(바깥) → CB(안쪽). CB가 OPEN이면 CallNotPermittedException → Retry가 재시도
+// 어노테이션 나열 순서는 실행 순서와 무관하다 — *AspectOrder 프로퍼티가 결정한다
+@Service
+class ExternalApiService {
+
+    @CircuitBreaker(name = "externalApi", fallbackMethod = "apiFallback")
+    @Retry(name = "externalApi")
+    fun call(req: ApiRequest): ApiResponse =
+        httpClient.post(req)
+
+    private fun apiFallback(req: ApiRequest, ex: CallNotPermittedException): ApiResponse =
+        ApiResponse(cached = true, data = cache.get(req.key), reason = "CB OPEN")
+
+    private fun apiFallback(req: ApiRequest, ex: Exception): ApiResponse =
+        ApiResponse(cached = true, data = cache.get(req.key))
+}
+
+// ── 방법 2: Registry 직접 사용 — Decorators 함수형 체이닝 ──
+// 마지막에 추가한 데코레이터가 가장 바깥을 감싼다 → withRetry가 최외곽, withCB가 내부
+@Service
+class ExternalApiService(
+    private val retryRegistry: RetryRegistry,
+    private val circuitBreakerRegistry: CircuitBreakerRegistry
+) {
+    private val retry = retryRegistry.retry("externalApi")
+    private val cb = circuitBreakerRegistry.circuitBreaker("externalApi")
+
+    fun call(req: ApiRequest): ApiResponse {
+        val decorated = Decorators.ofSupplier { httpClient.post(req) }
+            .withCircuitBreaker(cb)
+            .withRetry(retry)
+            .withFallback(
+                listOf(CallNotPermittedException::class.java, MaxRetriesExceededException::class.java)
+            ) { ex -> ApiResponse(cached = true, data = cache.get(req.key)) }
+            .decorate()
+        return decorated.get()
+    }
+}
+```
+
+---
+
+## 06. 조합 순서
+
+5가지를 개별로 이해했으면, 이제 조합이다. Resilience4j의 Spring Boot Starter는 기본적으로 아래와 같은 순서로 어노테이션을 중첩(Chained)하여 실행한다.
+
+<img src="/images/20260319_resilience/resilience_annotation_order.svg" alt="Annotation Order" />
+
+```
+Retry ( CircuitBreaker ( RateLimiter ( TimeLimiter ( Bulkhead ( Function ) ) ) ) )
+(가장 바깥)                                              (가장 안쪽)
+```
+[공식 문서 참고](https://resilience4j.readme.io/docs/getting-started-3#aspect-order)
+
+**왜 이 순서인가? (기본 설정의 개념)**
+
+각 패턴이 양파 껍질처럼 메서드를 감싸고 있으며, 요청은 바깥쪽에서 안쪽으로 전달된다.
+
+1. **Retry (최외곽)**: 전체 과정을 감싼다. 내부에서 어떤 이유(CB 차단, 타임아웃, 예외 등)로 실패하든, 정해진 횟수만큼 **전체 시나리오를 다시 시작**할 수 있는 권한을 가진다. 
+2. **CircuitBreaker**: 서비스의 건강 상태를 체크한다. 이미 서비스가 불능 상태(OPEN)라면, 그 안쪽의 로직(RateLimit, Bulkhead 등)을 수행할 필요도 없이 여기서 바로 차단하여 리소스를 아낀다.
+3. **RateLimiter**: 이번 **개별 시도(Attempt)**를 보낼 쿼터가 있는지 확인한다. 재시도가 발생할 때마다 매번 쿼터를 확인하여 외부 시스템에 가해지는 총 부하를 조절한다.
+4. **TimeLimiter**: 이번 **개별 시도**가 제한 시간 내에 끝나는지 감시한다.
+5. **Bulkhead (최내곽)**: 실제 메서드를 실행하기 직전, 내부 동시성 슬롯을 확보한다. 실행을 위한 실제 리소스(스레드/세마포어)가 있을 때만 최종적으로 메서드를 호출한다.
+
+이 순서는 각 패턴이 서로의 역할을 방해하지 않고 **상호 보완**하도록 설계된 표준이다. 바깥쪽은 "이 요청을 보낼 상황인가?"를 결정하고, 안쪽으로 갈수록 "이 요청을 어떻게 안전하게 실행할 것인가?"에 집중하는 구조다. 이 계층 구조를 이해해야 복합적인 장애 상황에서 시스템이 어떻게 반응할지 예측할 수 있다.
+
+---
+
+## 07. Multi Instance — Scale-out 환경
+
+Resilience4j의 상태(sliding window, quota 카운터 등)는 **JVM 메모리에 저장**된다. <br />인스턴스가 여러 개로 늘어나면 각자 독립된 상태를 갖는다. 
+
+> 각 상황에 따라 문제가 될 수 있는 상황 여부를 확인하고 이에 알맞게 사용할 수 있어야한다.
+
+| 모듈 | 인스턴스 간 동작 | 문제 여부 |
+|------|-----------------|----------|
+| **Circuit Breaker** | 각 인스턴스가 독립적으로 실패율 측정 | 대부분 허용 가능 — 외부 장애 시 모든 인스턴스가 수초 내 자연 수렴 |
+| **Rate Limiter** | 각 인스턴스가 독립적으로 quota 관리 | **문제** — 3대 × 100 = 실제 300 요청. 외부 quota 보호 불가 |
+| **Bulkhead** | 각 인스턴스가 독립적으로 슬롯 관리 | 허용 가능 — 로드밸런서가 트래픽을 분산하므로 자연스럽게 나뉨 |
+| **Retry** | 각 인스턴스가 독립적으로 재시도 | 허용 가능 — 인스턴스별 재시도 횟수는 동일하게 제한됨 |
+
+**Circuit Breaker가 인스턴스별 독립이어도 괜찮은 이유**<br />
+PG사가 죽으면 모든 인스턴스에서 동시에 실패율이 올라간다. 인스턴스 A의 CB가 0.5초 먼저 OPEN되고 인스턴스 B는 1초 후에 OPEN되는 정도의 차이인데, 이 수준의 불일치는 실무에서 문제가 되지 않는다.
+
+**Rate Limiter는 충분한 검증 필요** <br />카카오 API의 초당 quota가 1,000건인데 인스턴스 5대가 각각 `limitForPeriod: 200`으로 설정하면 이론적으로는 맞지만, 트래픽이 균등 분배된다는 보장이 없다. 한 인스턴스에 몰리면 그 인스턴스만 200건을 채우고 나머지 4대의 800건은 낭비된다. 외부 API quota 보호가 목적이라면 Redis로 중앙화해야 한다.
+
+```kotlin
+@Component
+class RedisRateLimiter(private val redis: StringRedisTemplate) {
+
+    private val script = DefaultRedisScript<Long>().apply {
+        setScriptText("""
+            local current = redis.call('INCR', KEYS[1])
+            if current == 1 then
+                redis.call('EXPIRE', KEYS[1], ARGV[2])
+            end
+            if current > tonumber(ARGV[1]) then return 0 end
+            return 1
+        """)
+        resultType = Long::class.java
+    }
+
+    fun tryAcquire(key: String, limit: Int, windowSec: Int): Boolean =
+        redis.execute(script, listOf(key), limit.toString(), windowSec.toString()) == 1L
+}
+```
+
+INCR + EXPIRE를 하나의 Lua 스크립트로 묶어서 atomic하게 실행한다. 어떤 인스턴스에서 호출하든 Redis의 단일 카운터를 공유하므로, 전체 클러스터에서 정확히 quota를 지킬 수 있다.
+
+---
+
+# 결론
+
+모든 기능에는 각 특징과 트레이드오프가 존재한다.
+
+또한 5가지 패턴은 각각 요청 생명주기의 **다른 시점**에서 개입하기에 아래와 같이 시점과 보호 대상, 성격에 따라 적절한 선택이 우리 서비스를 보호해주는 아군이 되어줄 수 있다.
+
+| 패턴 | 개입 시점 | 보호 대상 | 핵심 질문 |
+|------|----------|----------|----------|
+| Rate Limiter | 실행 전 | 외부 API quota | "초당 몇 건까지 보내도 되는가?" |
+| Bulkhead | 실행 전~후 | 내부 스레드/커넥션 풀 | "동시에 몇 개까지 허용하는가?" |
+| Circuit Breaker | 실행 전(차단) + 후(기록) | 전체 시스템 가용성 | "이 서비스가 지금 살아있는가?" |
+| Time Limiter | 실행 중 | 비동기 작업 점유 시간 | "얼마나 기다릴 것인가?" |
+| Retry | 실행 후 | 일시적 장애 복구 | "다시 시도하면 될 수 있는가?" |
+
+개별 패턴을 이해하는 것보다 중요한 것은 **조합했을 때 순서가 동작을 결정한다**는 사실이다. Retry가 CB 안쪽에 있느냐 바깥에 있느냐에 따라, 같은 설정값이 장애를 막을 수도 있고 장애를 증폭시킬 수도 있다.
+
+평상시 기능의 실패율, 외부 서비스의 평균 복구 시간 등을 알아내기 위해선 단순한 결정이 아닌 충분한 근거와 데이터를 기반으로 작업할 수 있는 지식과 자세를 학습하자.
+
+**모든 선택은 추측이 아니라 관측에서 나와야 한다.**
+
+---
+
+# References
+
+- [Resilience4j 공식 문서](https://resilience4j.readme.io/docs)
+- [Resilience4j GitHub](https://github.com/resilience4j/resilience4j)
+- [Getting Started with Spring Boot 3 — Aspect Order](https://resilience4j.readme.io/docs/getting-started-3#aspect-order)
+- [Spring Framework — AOP Proxies](https://docs.spring.io/spring-framework/reference/data-access/transaction/declarative/annotations.html)

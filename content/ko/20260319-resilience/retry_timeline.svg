@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 700 216" width="700" xmlns="http://www.w3.org/2000/svg"
+     style="background:#fffefc; font-family:'Roboto',sans-serif;">
+
+  <defs>
+    <style>
+      .t-base  { fill: #586e75; font-family: 'Roboto', sans-serif; font-size: 12px; }
+      .t-green { fill: #859900; font-family: 'Roboto', sans-serif; font-size: 11px; }
+      .t-red   { fill: #dc322f; font-family: 'Roboto', sans-serif; font-size: 11px; }
+      .t-amber { fill: #b58900; font-family: 'Roboto', sans-serif; font-size: 11px; }
+      .t-muted { fill: #93a1a1; font-family: 'Roboto', sans-serif; font-size: 11px; }
+      .t-mono  { fill: #657b83; font-family: 'Roboto Mono', monospace; font-size: 10.5px; }
+      .n-gray   { fill: #e4deca; stroke: #c5bcaa; }
+      .n-green  { fill: rgba(133,153,0,.12);  stroke: rgba(133,153,0,.5); }
+      .n-teal   { fill: rgba(42,161,152,.12); stroke: rgba(42,161,152,.5); }
+      .n-purple { fill: rgba(108,113,196,.12);stroke: rgba(108,113,196,.5); }
+      .n-red    { fill: rgba(220,50,47,.12);  stroke: rgba(220,50,47,.5); }
+      .n-amber  { fill: rgba(181,137,0,.12);  stroke: rgba(181,137,0,.5); }
+      .arr { stroke: #93a1a1; stroke-width: 1; fill: none; }
+      text { font-family: 'Roboto', sans-serif; }
+    </style>
+  </defs>
+
+
+
+      <!-- time axis -->
+      <line x1="16" y1="34" x2="624" y2="34" stroke="#d3cbb8" stroke-width="1"/>
+
+      <!-- attempt 1 (t=0) -->
+      <text x="16" y="52" font-family="'Roboto Mono',monospace" font-size="10" fill="#657b83">attempt 1</text>
+      <rect x="16"  y="56" width="70" height="20" rx="3" fill="rgba(108,113,196,.12)" stroke="#6c71c4" stroke-width="0.7"/>
+      <text x="51"  y="66" text-anchor="middle" dominant-baseline="central" font-family="'Roboto',sans-serif" font-size="10" fill="#6c71c4">Method()</text>
+      <!-- fail -->
+      <rect x="86"  y="56" width="20" height="20" rx="3" fill="rgba(220,50,47,.1)" stroke="#dc322f" stroke-width="0.7"/>
+      <text x="96"  y="66" text-anchor="middle" dominant-baseline="central" font-family="'Roboto',sans-serif" font-size="9" fill="#dc322f">✕</text>
+
+      <!-- waitDuration 1 (1s = 90px) -->
+      <rect x="106" y="56" width="90" height="20" rx="3" fill="rgba(181,137,0,.08)" stroke="#b58900" stroke-width="0.7" stroke-dasharray="3 2"/>
+      <text x="151" y="66" text-anchor="middle" dominant-baseline="central" font-family="'Roboto Mono',monospace" font-size="9" fill="#b58900">wait 1s</text>
+      <!-- brace for wait 1 -->
+      <line x1="106" y1="80" x2="106" y2="86" stroke="#b58900" stroke-width="0.7"/>
+      <line x1="106" y1="83" x2="196" y2="83" stroke="#b58900" stroke-width="0.7"/>
+      <line x1="196" y1="80" x2="196" y2="86" stroke="#b58900" stroke-width="0.7"/>
+      <text x="151" y="94" text-anchor="middle" font-family="'Roboto Mono',monospace" font-size="9" fill="#b58900">waitDuration</text>
+
+      <!-- attempt 2 (t=1s+) -->
+      <text x="196" y="52" font-family="'Roboto Mono',monospace" font-size="10" fill="#657b83">attempt 2</text>
+      <rect x="196" y="56" width="70" height="20" rx="3" fill="rgba(108,113,196,.12)" stroke="#6c71c4" stroke-width="0.7"/>
+      <text x="231" y="66" text-anchor="middle" dominant-baseline="central" font-family="'Roboto',sans-serif" font-size="10" fill="#6c71c4">Method()</text>
+      <!-- fail -->
+      <rect x="266" y="56" width="20" height="20" rx="3" fill="rgba(220,50,47,.1)" stroke="#dc322f" stroke-width="0.7"/>
+      <text x="276" y="66" text-anchor="middle" dominant-baseline="central" font-family="'Roboto',sans-serif" font-size="9" fill="#dc322f">✕</text>
+
+      <!-- waitDuration 2 (2s = 180px, exponential x2) -->
+      <rect x="286" y="56" width="180" height="20" rx="3" fill="rgba(181,137,0,.08)" stroke="#b58900" stroke-width="0.7" stroke-dasharray="3 2"/>
+      <text x="376" y="66" text-anchor="middle" dominant-baseline="central" font-family="'Roboto Mono',monospace" font-size="9" fill="#b58900">wait 2s (×2 backoff)</text>
+      <!-- brace for wait 2 -->
+      <line x1="286" y1="80" x2="286" y2="86" stroke="#b58900" stroke-width="0.7"/>
+      <line x1="286" y1="83" x2="466" y2="83" stroke="#b58900" stroke-width="0.7"/>
+      <line x1="466" y1="80" x2="466" y2="86" stroke="#b58900" stroke-width="0.7"/>
+      <text x="376" y="94" text-anchor="middle" font-family="'Roboto Mono',monospace" font-size="9" fill="#b58900">waitDuration × multiplier²</text>
+
+      <!-- attempt 3 (t=3s+) -->
+      <text x="466" y="52" font-family="'Roboto Mono',monospace" font-size="10" fill="#657b83">attempt 3</text>
+
+      <!-- Case A: success on attempt 3 -->
+      <text x="16" y="114" font-family="'Roboto',sans-serif" font-size="11" fill="#657b83">① attempt 3 성공 → 즉시 반환</text>
+      <rect x="466" y="120" width="70" height="20" rx="3" fill="rgba(108,113,196,.12)" stroke="#6c71c4" stroke-width="0.7"/>
+      <text x="501" y="130" text-anchor="middle" dominant-baseline="central" font-family="'Roboto',sans-serif" font-size="10" fill="#6c71c4">Method()</text>
+      <rect x="536" y="120" width="52" height="20" rx="3" fill="rgba(133,153,0,.13)" stroke="#859900" stroke-width="0.7"/>
+      <text x="562" y="130" text-anchor="middle" dominant-baseline="central" font-family="'Roboto',sans-serif" font-size="10" fill="#859900">성공 ✓</text>
+
+      <!-- Case B: fail on attempt 3 → propagate -->
+      <text x="16" y="154" font-family="'Roboto',sans-serif" font-size="11" fill="#657b83">② attempt 3 실패 → maxAttempts 소진 → 예외 전파</text>
+      <rect x="466" y="160" width="70" height="20" rx="3" fill="rgba(108,113,196,.12)" stroke="#6c71c4" stroke-width="0.7"/>
+      <text x="501" y="170" text-anchor="middle" dominant-baseline="central" font-family="'Roboto',sans-serif" font-size="10" fill="#6c71c4">Method()</text>
+      <rect x="536" y="160" width="20" height="20" rx="3" fill="rgba(220,50,47,.1)" stroke="#dc322f" stroke-width="0.7"/>
+      <text x="546" y="170" text-anchor="middle" dominant-baseline="central" font-family="'Roboto',sans-serif" font-size="9" fill="#dc322f">✕</text>
+      <text x="562" y="170" dominant-baseline="central" font-family="'Roboto Mono',monospace" font-size="9" fill="#dc322f">MaxRetriesExceeded</text>
+
+      <!-- maxAttempts brace across all 3 attempts -->
+      <line x1="16"  y1="192" x2="16"  y2="198" stroke="#8492b8" stroke-width="0.7"/>
+      <line x1="16"  y1="195" x2="556" y2="195" stroke="#8492b8" stroke-width="0.7"/>
+      <line x1="556" y1="192" x2="556" y2="198" stroke="#8492b8" stroke-width="0.7"/>
+      <text x="286" y="208" text-anchor="middle" font-family="'Roboto Mono',monospace" font-size="9" fill="#657b83">maxAttempts = 3 (attempt 1 + retry 2회)</text>
+    
+</svg>

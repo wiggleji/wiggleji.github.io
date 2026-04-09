@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 720 280" xmlns="http://www.w3.org/2000/svg" font-family="Fira Code, monospace">
+  <rect width="720" height="280" fill="#fefefe"/>
+
+  <!-- Title -->
+  <text x="360" y="24" text-anchor="middle" fill="#333" font-size="13" font-weight="700">Fixed Window — Boundary Burst (경계 폭발)</text>
+  <text x="360" y="40" text-anchor="middle" fill="#aaa" font-size="9">한도 10/s | 윈도우 경계에서 제한이 무너지는 문제</text>
+
+  <!-- Timeline base -->
+  <line x1="60" y1="190" x2="660" y2="190" stroke="#ddd" stroke-width="1.5"/>
+
+  <!-- Window 1 box -->
+  <rect x="60" y="62" width="280" height="118" rx="6" fill="#fffcf7" stroke="#d4a017" stroke-width="1.2" stroke-dasharray="6,3"/>
+  <text x="200" y="56" text-anchor="middle" fill="#d4a017" font-size="10" font-weight="600">Window 1 (0s ~ 1s)</text>
+
+  <!-- Window 2 box -->
+  <rect x="340" y="62" width="280" height="118" rx="6" fill="#f4faf4" stroke="#2e7d32" stroke-width="1.2" stroke-dasharray="6,3"/>
+  <text x="480" y="56" text-anchor="middle" fill="#2e7d32" font-size="10" font-weight="600">Window 2 (1s ~ 2s)</text>
+
+  <!-- Danger zone highlight -->
+  <rect x="248" y="62" width="184" height="118" fill="#c0392b" opacity="0.06"/>
+  <text x="340" y="80" text-anchor="middle" fill="#c0392b" font-size="10" font-weight="700">0.2초 사이에 20건!</text>
+
+  <!-- Request bars: Window 1 late (near 0.9s) -->
+  <g transform="translate(260, 95)">
+    <rect x="0" y="0" width="14" height="65" rx="3" fill="#d4a017" opacity="0.7"/>
+    <rect x="18" y="0" width="14" height="65" rx="3" fill="#d4a017" opacity="0.7"/>
+    <rect x="36" y="0" width="14" height="65" rx="3" fill="#d4a017" opacity="0.7"/>
+    <rect x="54" y="0" width="14" height="65" rx="3" fill="#d4a017" opacity="0.7"/>
+    <rect x="72" y="0" width="14" height="65" rx="3" fill="#d4a017" opacity="0.5"/>
+    <text x="43" y="80" text-anchor="middle" fill="#d4a017" font-size="10" font-weight="600">10건</text>
+  </g>
+
+  <!-- Request bars: Window 2 early (near 1.0s) -->
+  <g transform="translate(356, 95)">
+    <rect x="0" y="0" width="14" height="65" rx="3" fill="#2e7d32" opacity="0.7"/>
+    <rect x="18" y="0" width="14" height="65" rx="3" fill="#2e7d32" opacity="0.7"/>
+    <rect x="36" y="0" width="14" height="65" rx="3" fill="#2e7d32" opacity="0.7"/>
+    <rect x="54" y="0" width="14" height="65" rx="3" fill="#2e7d32" opacity="0.7"/>
+    <rect x="72" y="0" width="14" height="65" rx="3" fill="#2e7d32" opacity="0.5"/>
+    <text x="43" y="80" text-anchor="middle" fill="#2e7d32" font-size="10" font-weight="600">10건</text>
+  </g>
+
+  <!-- Time tick marks -->
+  <line x1="60" y1="186" x2="60" y2="194" stroke="#999" stroke-width="1.2"/>
+  <text x="60" y="208" text-anchor="middle" fill="#999" font-size="10">0s</text>
+
+  <line x1="300" y1="186" x2="300" y2="194" stroke="#999" stroke-width="1.2"/>
+  <text x="300" y="208" text-anchor="middle" fill="#999" font-size="10">0.9s</text>
+
+  <line x1="340" y1="186" x2="340" y2="194" stroke="#c0392b" stroke-width="2"/>
+  <text x="340" y="208" text-anchor="middle" fill="#c0392b" font-size="10" font-weight="700">1.0s</text>
+  <text x="340" y="222" text-anchor="middle" fill="#c0392b" font-size="8">(리셋!)</text>
+
+  <line x1="440" y1="186" x2="440" y2="194" stroke="#999" stroke-width="1.2"/>
+  <text x="440" y="208" text-anchor="middle" fill="#999" font-size="10">1.1s</text>
+
+  <line x1="660" y1="186" x2="660" y2="194" stroke="#999" stroke-width="1.2"/>
+  <text x="660" y="208" text-anchor="middle" fill="#999" font-size="10">2s</text>
+
+  <!-- Bottom note -->
+  <text x="360" y="256" text-anchor="middle" fill="#c0392b" font-size="12" font-weight="700">한도 10/s인데 0.2초 사이에 20건 통과 → 실질 100 TPS</text>
+</svg>

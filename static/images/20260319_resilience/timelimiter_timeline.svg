@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 640 212" width="640" xmlns="http://www.w3.org/2000/svg"
+     style="background:#fffefc; font-family:'Roboto',sans-serif;">
+
+  <defs>
+    <style>
+      .t-base  { fill: #586e75; font-family: 'Roboto', sans-serif; font-size: 12px; }
+      .t-green { fill: #859900; font-family: 'Roboto', sans-serif; font-size: 11px; }
+      .t-red   { fill: #dc322f; font-family: 'Roboto', sans-serif; font-size: 11px; }
+      .t-amber { fill: #b58900; font-family: 'Roboto', sans-serif; font-size: 11px; }
+      .t-muted { fill: #93a1a1; font-family: 'Roboto', sans-serif; font-size: 11px; }
+      .t-mono  { fill: #657b83; font-family: 'Roboto Mono', monospace; font-size: 10.5px; }
+      .n-gray   { fill: #e4deca; stroke: #c5bcaa; }
+      .n-green  { fill: rgba(133,153,0,.12);  stroke: rgba(133,153,0,.5); }
+      .n-teal   { fill: rgba(42,161,152,.12); stroke: rgba(42,161,152,.5); }
+      .n-purple { fill: rgba(108,113,196,.12);stroke: rgba(108,113,196,.5); }
+      .n-red    { fill: rgba(220,50,47,.12);  stroke: rgba(220,50,47,.5); }
+      .n-amber  { fill: rgba(181,137,0,.12);  stroke: rgba(181,137,0,.5); }
+      .arr { stroke: #93a1a1; stroke-width: 1; fill: none; }
+      text { font-family: 'Roboto', sans-serif; }
+    </style>
+  </defs>
+
+
+
+      <!-- time axis -->
+      <line x1="16" y1="36" x2="624" y2="36" stroke="#d3cbb8" stroke-width="1"/>
+      <!-- tick marks -->
+      <line x1="16"  y1="33" x2="16"  y2="39" stroke="#93a1a1" stroke-width="0.8"/>
+      <text x="16"  y="47" text-anchor="middle" font-family="'Roboto Mono',monospace" font-size="9" fill="#93a1a1">0s</text>
+      <line x1="196" y1="33" x2="196" y2="39" stroke="#93a1a1" stroke-width="0.8"/>
+      <text x="196" y="47" text-anchor="middle" font-family="'Roboto Mono',monospace" font-size="9" fill="#93a1a1">1s</text>
+      <line x1="376" y1="33" x2="376" y2="39" stroke="#93a1a1" stroke-width="0.8"/>
+      <text x="376" y="47" text-anchor="middle" font-family="'Roboto Mono',monospace" font-size="9" fill="#93a1a1">2s</text>
+      <line x1="556" y1="33" x2="556" y2="39" stroke="#93a1a1" stroke-width="0.8"/>
+      <text x="556" y="47" text-anchor="middle" font-family="'Roboto Mono',monospace" font-size="9" fill="#93a1a1">3s</text>
+
+      <!-- timeoutDuration bracket (0 → 3s = x:16 → x:556) -->
+      <line x1="16"  y1="56" x2="16"  y2="62" stroke="#b58900" stroke-width="1"/>
+      <line x1="16"  y1="59" x2="556" y2="59" stroke="#b58900" stroke-width="1"/>
+      <line x1="556" y1="56" x2="556" y2="62" stroke="#b58900" stroke-width="1"/>
+      <text x="286" y="54" text-anchor="middle" font-family="'Roboto Mono',monospace" font-size="10" fill="#b58900">timeoutDuration (3s) — 감시 중</text>
+
+      <!-- ── Case A: completes before timeout ── -->
+      <text x="16" y="82" font-family="'Roboto',sans-serif" font-size="11" fill="#657b83">① 정상 완료 (2s 이내)</text>
+      <!-- future execution bar: 0 → 2s -->
+      <rect x="16"  y="88" width="360" height="20" rx="3" fill="rgba(108,113,196,.12)" stroke="#6c71c4" stroke-width="0.7"/>
+      <text x="196" y="98" text-anchor="middle" dominant-baseline="central" font-family="'Roboto',sans-serif" font-size="10" fill="#6c71c4">CompletableFuture 실행 중...</text>
+      <!-- complete marker -->
+      <line x1="376" y1="84" x2="376" y2="112" stroke="#859900" stroke-width="1" stroke-dasharray="3 2"/>
+      <rect x="380" y="88" width="60" height="20" rx="3" fill="rgba(133,153,0,.13)" stroke="#859900" stroke-width="0.7"/>
+      <text x="410" y="98" text-anchor="middle" dominant-baseline="central" font-family="'Roboto',sans-serif" font-size="10" fill="#859900">완료 ✓</text>
+
+      <!-- ── Case B: exceeds timeout ── -->
+      <text x="16" y="126" font-family="'Roboto',sans-serif" font-size="11" fill="#657b83">② 타임아웃 초과 (3s+)</text>
+      <!-- future execution bar: 0 → timeout point, then cut -->
+      <rect x="16"  y="132" width="540" height="20" rx="3" fill="rgba(108,113,196,.12)" stroke="#6c71c4" stroke-width="0.7"/>
+      <text x="280" y="142" text-anchor="middle" dominant-baseline="central" font-family="'Roboto',sans-serif" font-size="10" fill="#6c71c4">CompletableFuture 실행 중... (응답 없음)</text>
+      <!-- timeout cut marker at 3s -->
+      <line x1="556" y1="128" x2="556" y2="158" stroke="#dc322f" stroke-width="1.5"/>
+      <!-- cancelled tail -->
+      <rect x="556" y="132" width="56" height="20" rx="3" fill="rgba(220,50,47,.08)" stroke="#dc322f" stroke-width="0.7" stroke-dasharray="3 2"/>
+      <text x="584" y="142" text-anchor="middle" dominant-baseline="central" font-family="'Roboto',sans-serif" font-size="9" fill="#dc322f">cancel()</text>
+      <!-- exception label -->
+      <text x="556" y="165" text-anchor="middle" font-family="'Roboto Mono',monospace" font-size="9" fill="#dc322f">TimeoutException</text>
+
+      <!-- legend -->
+      <rect x="16"  y="168" width="12" height="10" rx="2" fill="rgba(108,113,196,.12)" stroke="#6c71c4" stroke-width="0.7"/>
+      <text x="32"  y="173" dominant-baseline="central" font-family="'Roboto',sans-serif" font-size="11" fill="#657b83">Future 실행 구간</text>
+      <rect x="170" y="168" width="12" height="10" rx="2" fill="rgba(220,50,47,.08)"  stroke="#dc322f" stroke-width="0.7" stroke-dasharray="3 2"/>
+      <text x="186" y="173" dominant-baseline="central" font-family="'Roboto',sans-serif" font-size="11" fill="#657b83">cancel() 후 무효화 구간</text>
+      <rect x="360" y="168" width="12" height="10" rx="2" fill="rgba(133,153,0,.13)"   stroke="#859900" stroke-width="0.7"/>
+      <text x="376" y="173" dominant-baseline="central" font-family="'Roboto',sans-serif" font-size="11" fill="#657b83">정상 완료</text>
+    
+</svg>

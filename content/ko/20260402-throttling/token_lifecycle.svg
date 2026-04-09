@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 720 220" xmlns="http://www.w3.org/2000/svg" font-family="Fira Code, monospace">
+  <defs>
+    <marker id="la" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto"><path d="M0,0 L7,2.5 L0,5" fill="#999"/></marker>
+  </defs>
+
+  <rect width="720" height="220" fill="#fefefe"/>
+
+  <!-- Title -->
+  <text x="360" y="24" text-anchor="middle" fill="#333" font-size="13" font-weight="700">토큰 상태 전이 (Token Lifecycle)</text>
+
+  <!-- === WAITING === -->
+  <rect x="30" y="54" width="190" height="76" rx="8" fill="#fffcf7" stroke="#d4a017" stroke-width="1.5"/>
+  <text x="125" y="78" text-anchor="middle" fill="#d4a017" font-size="14" font-weight="700">WAITING</text>
+  <text x="125" y="96" text-anchor="middle" fill="#999" font-size="9">Sorted Set에 대기</text>
+  <text x="125" y="114" text-anchor="middle" fill="#bbb" font-size="8">token: null</text>
+
+  <!-- Arrow 1: WAITING → ACTIVE -->
+  <line x1="220" y1="92" x2="268" y2="92" stroke="#999" stroke-width="1.5" marker-end="url(#la)"/>
+  <text x="244" y="84" text-anchor="middle" fill="#2e7d32" font-size="8" font-weight="600">ZPOPMIN</text>
+  <text x="244" y="108" text-anchor="middle" fill="#999" font-size="7">스케줄러</text>
+
+  <!-- === ACTIVE === -->
+  <rect x="280" y="54" width="190" height="76" rx="8" fill="#fffcf7" stroke="#e67e22" stroke-width="1.5"/>
+  <text x="375" y="78" text-anchor="middle" fill="#e67e22" font-size="14" font-weight="700">ACTIVE</text>
+  <text x="375" y="96" text-anchor="middle" fill="#999" font-size="9">입장 토큰 보유</text>
+  <text x="375" y="114" text-anchor="middle" fill="#bbb" font-size="8">token: "abc-123" (TTL 5분)</text>
+
+  <!-- Arrow 2: ACTIVE → NOT_IN_QUEUE -->
+  <line x1="470" y1="92" x2="518" y2="92" stroke="#999" stroke-width="1.5" marker-end="url(#la)"/>
+  <text x="494" y="84" text-anchor="middle" fill="#2e7d32" font-size="8" font-weight="600">DEL</text>
+  <text x="494" y="108" text-anchor="middle" fill="#999" font-size="7">주문 성공</text>
+
+  <!-- === NOT_IN_QUEUE === -->
+  <rect x="530" y="54" width="170" height="76" rx="8" fill="#f4faf4" stroke="#2e7d32" stroke-width="1.5"/>
+  <text x="615" y="76" text-anchor="middle" fill="#2e7d32" font-size="12" font-weight="700">NOT_IN_QUEUE</text>
+  <text x="615" y="96" text-anchor="middle" fill="#999" font-size="9">완료 또는 만료</text>
+  <text x="615" y="114" text-anchor="middle" fill="#bbb" font-size="8">token: (삭제됨)</text>
+
+  <!-- TTL expiry curved path -->
+  <path d="M375,130 Q375,170 495,170 Q615,170 615,130" fill="none" stroke="#c0392b" stroke-width="1.2" stroke-dasharray="5,3"/>
+  <text x="495" y="190" text-anchor="middle" fill="#c0392b" font-size="9">TTL 만료 시 자동 삭제</text>
+
+  <!-- Redis operations -->
+  <text x="125" y="148" text-anchor="middle" fill="#d4a017" font-size="8">ZADD NX {ts} {uid}</text>
+  <text x="375" y="148" text-anchor="middle" fill="#e67e22" font-size="8">SET {uid} UUID EX 300</text>
+  <text x="615" y="148" text-anchor="middle" fill="#2e7d32" font-size="8">DEL entry-token:{uid}</text>
+</svg>

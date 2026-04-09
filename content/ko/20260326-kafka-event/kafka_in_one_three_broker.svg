@@ -1,0 +1,235 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 960 850" xmlns="http://www.w3.org/2000/svg" font-family="Fira Code, monospace">
+    <rect width="960" height="850" fill="#fefefe" rx="0"/>
+
+    <!-- Title -->
+    <text x="480" y="20" text-anchor="middle" fill="#333" font-size="14" font-weight="700">Kafka 전체 구조 — 쿠폰 발급 시스템 (3 Broker Cluster)</text>
+    <text x="480" y="35" text-anchor="middle" fill="#aaa" font-size="9">Producer(push) → Broker Cluster(Leader/Follower) → Consumer Group(pull)  |  Offset은 Group마다 독립</text>
+
+    <!-- ═══ PRODUCER ═══ -->
+    <rect x="10" y="52" width="120" height="148" rx="10" fill="#fffcf7" stroke="#e67e22" stroke-width="1.5"/>
+    <text x="70" y="72" text-anchor="middle" fill="#e67e22" font-size="12" font-weight="700">Producer</text>
+    <text x="70" y="86" text-anchor="middle" fill="#999" font-size="7">쿠폰 발급 API</text>
+    <rect x="18" y="96" width="104" height="24" rx="4" fill="#fff" stroke="#c0392b" stroke-width="1"/>
+    <text x="70" y="112" text-anchor="middle" fill="#c0392b" font-size="8" font-weight="600">coupon-issued</text>
+    <rect x="18" y="124" width="104" height="24" rx="4" fill="#fff" stroke="#c0392b" stroke-width="1"/>
+    <text x="70" y="140" text-anchor="middle" fill="#c0392b" font-size="8" font-weight="600">coupon-used</text>
+    <rect x="18" y="152" width="104" height="24" rx="4" fill="#fff" stroke="#c0392b" stroke-width="1"/>
+    <text x="70" y="168" text-anchor="middle" fill="#c0392b" font-size="8" font-weight="600">coupon-expired</text>
+
+    <!-- hash box -->
+    <rect x="138" y="72" width="55" height="28" rx="4" fill="#f9f8f5" stroke="#ddd"/>
+    <text x="165" y="86" text-anchor="middle" fill="#999" font-size="7">hash(key)</text>
+    <text x="165" y="96" text-anchor="middle" fill="#999" font-size="7">% 3</text>
+
+    <!-- Push arrows -->
+    <line x1="132" y1="108" x2="205" y2="108" stroke="#d4a017" stroke-width="1.2" marker-end="url(#ay)"/>
+    <text x="168" y="105" fill="#d4a017" font-size="6" font-weight="600">push</text>
+    <line x1="132" y1="136" x2="205" y2="196" stroke="#7d3c98" stroke-width="1.2" marker-end="url(#av)"/>
+    <text x="155" y="168" fill="#7d3c98" font-size="6" font-weight="600">push</text>
+    <line x1="132" y1="164" x2="205" y2="282" stroke="#148f77" stroke-width="1.2" marker-end="url(#ac)"/>
+    <text x="150" y="232" fill="#148f77" font-size="6" font-weight="600">push</text>
+
+    <!-- ═══ BROKER CLUSTER ═══ -->
+    <rect x="198" y="44" width="490" height="350" rx="12" fill="#f7f7f4" stroke="#e67e22" stroke-width="1.5" stroke-dasharray="6"/>
+    <text x="443" y="62" text-anchor="middle" fill="#e67e22" font-size="11" font-weight="700">Kafka Cluster  (3 Brokers, replication.factor=3)</text>
+
+    <!-- ─── Broker 0 ─── -->
+    <rect x="208" y="72" width="155" height="310" rx="8" fill="#fafaf7" stroke="#e67e22" stroke-width="1.2"/>
+    <text x="285" y="90" text-anchor="middle" fill="#e67e22" font-size="10" font-weight="700">Broker 0</text>
+
+    <!-- P0 Leader -->
+    <rect x="216" y="100" width="139" height="48" rx="4" fill="#fffef8" stroke="#d4a017" stroke-width="1"/>
+    <text x="285" y="114" text-anchor="middle" fill="#d4a017" font-size="8" font-weight="700">P0 ★ Leader</text>
+    <g transform="translate(220,120)">
+        <rect width="30" height="22" rx="3" fill="#fff" stroke="#d4a017" stroke-width="0.6"/><text x="15" y="10" text-anchor="middle" fill="#d4a017" font-size="7">발급#1</text><text x="15" y="19" text-anchor="middle" fill="#bbb" font-size="6">off:0</text>
+        <rect x="33" width="30" height="22" rx="3" fill="#fff" stroke="#d4a017" stroke-width="0.6"/><text x="48" y="10" text-anchor="middle" fill="#d4a017" font-size="7">사용#2</text><text x="48" y="19" text-anchor="middle" fill="#bbb" font-size="6">off:1</text>
+        <rect x="66" width="30" height="22" rx="3" fill="#fff" stroke="#d4a017" stroke-width="0.6"/><text x="81" y="10" text-anchor="middle" fill="#d4a017" font-size="7">발급#5</text><text x="81" y="19" text-anchor="middle" fill="#bbb" font-size="6">off:2</text>
+        <rect x="99" width="30" height="22" rx="3" fill="#f8f8f6" stroke="#e0e0e0" stroke-dasharray="2"/>
+    </g>
+    <!-- Offset triangles P0 -->
+    <polygon points="250,150 253,143 256,150" fill="#2e7d32"/>
+    <polygon points="282,150 285,143 288,150" fill="#ad1457"/>
+
+    <!-- P1 Follower -->
+    <rect x="216" y="160" width="139" height="32" rx="4" fill="#fcf8ff" stroke="#7d3c98" stroke-width="0.6" stroke-dasharray="3"/>
+    <text x="285" y="180" text-anchor="middle" fill="#999" font-size="8">P1 Follower (ISR)</text>
+
+    <!-- P2 Follower -->
+    <rect x="216" y="200" width="139" height="32" rx="4" fill="#f5fcfa" stroke="#148f77" stroke-width="0.6" stroke-dasharray="3"/>
+    <text x="285" y="220" text-anchor="middle" fill="#999" font-size="8">P2 Follower (ISR)</text>
+
+    <!-- Replication label -->
+    <text x="285" y="250" text-anchor="middle" fill="#bbb" font-size="7">fetch (복제)</text>
+    <text x="285" y="260" text-anchor="middle" fill="#bbb" font-size="7">Leader → Follower</text>
+
+    <!-- ─── Broker 1 ─── -->
+    <rect x="373" y="72" width="155" height="310" rx="8" fill="#fafaf7" stroke="#e67e22" stroke-width="1.2"/>
+    <text x="450" y="90" text-anchor="middle" fill="#e67e22" font-size="10" font-weight="700">Broker 1</text>
+
+    <!-- P0 Follower -->
+    <rect x="381" y="100" width="139" height="32" rx="4" fill="#fffef8" stroke="#d4a017" stroke-width="0.6" stroke-dasharray="3"/>
+    <text x="450" y="120" text-anchor="middle" fill="#999" font-size="8">P0 Follower (ISR)</text>
+
+    <!-- P1 Leader -->
+    <rect x="381" y="140" width="139" height="48" rx="4" fill="#fcf8ff" stroke="#7d3c98" stroke-width="1"/>
+    <text x="450" y="154" text-anchor="middle" fill="#7d3c98" font-size="8" font-weight="700">P1 ★ Leader</text>
+    <g transform="translate(385,160)">
+        <rect width="30" height="22" rx="3" fill="#fff" stroke="#7d3c98" stroke-width="0.6"/><text x="15" y="10" text-anchor="middle" fill="#7d3c98" font-size="7">발급#3</text><text x="15" y="19" text-anchor="middle" fill="#bbb" font-size="6">off:0</text>
+        <rect x="33" width="30" height="22" rx="3" fill="#fff" stroke="#7d3c98" stroke-width="0.6"/><text x="48" y="10" text-anchor="middle" fill="#7d3c98" font-size="7">사용#4</text><text x="48" y="19" text-anchor="middle" fill="#bbb" font-size="6">off:1</text>
+        <rect x="66" width="30" height="22" rx="3" fill="#f8f8f6" stroke="#e0e0e0" stroke-dasharray="2"/>
+        <rect x="99" width="30" height="22" rx="3" fill="#f8f8f6" stroke="#e0e0e0" stroke-dasharray="2"/>
+    </g>
+    <polygon points="416,190 419,183 422,190" fill="#2e7d32"/>
+    <polygon points="449,190 452,183 455,190" fill="#ad1457"/>
+
+    <!-- P2 Follower -->
+    <rect x="381" y="200" width="139" height="32" rx="4" fill="#f5fcfa" stroke="#148f77" stroke-width="0.6" stroke-dasharray="3"/>
+    <text x="450" y="220" text-anchor="middle" fill="#999" font-size="8">P2 Follower (ISR)</text>
+
+    <!-- ─── Broker 2 ─── -->
+    <rect x="538" y="72" width="142" height="310" rx="8" fill="#fafaf7" stroke="#e67e22" stroke-width="1.2"/>
+    <text x="609" y="90" text-anchor="middle" fill="#e67e22" font-size="10" font-weight="700">Broker 2</text>
+
+    <!-- P0 Follower -->
+    <rect x="546" y="100" width="126" height="32" rx="4" fill="#fffef8" stroke="#d4a017" stroke-width="0.6" stroke-dasharray="3"/>
+    <text x="609" y="120" text-anchor="middle" fill="#999" font-size="8">P0 Follower</text>
+
+    <!-- P1 Follower -->
+    <rect x="546" y="140" width="126" height="32" rx="4" fill="#fcf8ff" stroke="#7d3c98" stroke-width="0.6" stroke-dasharray="3"/>
+    <text x="609" y="160" text-anchor="middle" fill="#999" font-size="8">P1 Follower</text>
+
+    <!-- P2 Leader -->
+    <rect x="546" y="180" width="126" height="48" rx="4" fill="#f5fcfa" stroke="#148f77" stroke-width="1"/>
+    <text x="609" y="194" text-anchor="middle" fill="#148f77" font-size="8" font-weight="700">P2 ★ Leader</text>
+    <g transform="translate(550,200)">
+        <rect width="28" height="22" rx="3" fill="#fff" stroke="#148f77" stroke-width="0.6"/><text x="14" y="10" text-anchor="middle" fill="#148f77" font-size="7">발급#7</text><text x="14" y="19" text-anchor="middle" fill="#bbb" font-size="6">off:0</text>
+        <rect x="31" width="28" height="22" rx="3" fill="#fff" stroke="#148f77" stroke-width="0.6"/><text x="45" y="10" text-anchor="middle" fill="#148f77" font-size="7">사용#8</text><text x="45" y="19" text-anchor="middle" fill="#bbb" font-size="6">off:1</text>
+        <rect x="62" width="28" height="22" rx="3" fill="#fff" stroke="#148f77" stroke-width="0.6"/><text x="76" y="10" text-anchor="middle" fill="#148f77" font-size="7">발급#9</text><text x="76" y="19" text-anchor="middle" fill="#bbb" font-size="6">off:2</text>
+        <rect x="93" width="28" height="22" rx="3" fill="#f8f8f6" stroke="#e0e0e0" stroke-dasharray="2"/>
+    </g>
+    <polygon points="580,230 583,223 586,230" fill="#2e7d32"/>
+    <polygon points="612,230 615,223 618,230" fill="#ad1457"/>
+
+    <!-- Cluster info box -->
+    <rect x="216" y="275" width="456" height="95" rx="6" fill="#fff" stroke="#e0e0e0"/>
+    <text x="444" y="294" text-anchor="middle" fill="#333" font-size="9" font-weight="700">Replication 규칙</text>
+    <text x="226" y="310" fill="#d4a017" font-size="8">★ Leader: 읽기/쓰기 담당. Producer가 push, Consumer가 pull하는 대상</text>
+    <text x="226" y="324" fill="#999" font-size="8">Follower (ISR): Leader를 fetch해서 복제. 장애 시 새 Leader로 승격</text>
+    <text x="226" y="338" fill="#999" font-size="8">Topic: coupon-events (3 Partitions × 3 Replicas = 9 copies across 3 Brokers)</text>
+
+    <!-- Offset Legend -->
+    <text x="226" y="358" fill="#333" font-size="8" font-weight="600">Offset:</text>
+    <polygon points="275,362 278,355 281,362" fill="#2e7d32"/>
+    <text x="286" y="361" fill="#2e7d32" font-size="7" font-weight="600">Group A "coupon-svc"</text>
+    <polygon points="435,362 438,355 441,362" fill="#ad1457"/>
+    <text x="446" y="361" fill="#ad1457" font-size="7" font-weight="600">Group B "analytics"</text>
+
+    <!-- ═══ CONSUMER GROUP A ═══ -->
+    <rect x="710" y="52" width="240" height="180" rx="10" fill="#f0f9f0" stroke="#2e7d32" stroke-width="1.5"/>
+    <text x="830" y="72" text-anchor="middle" fill="#2e7d32" font-size="11" font-weight="700">Consumer Group A</text>
+    <text x="830" y="86" text-anchor="middle" fill="#999" font-size="8">group.id = "coupon-svc"</text>
+    <rect x="722" y="96" width="105" height="46" rx="6" fill="#fff" stroke="#2e7d32" stroke-width="1"/>
+    <text x="774" y="116" text-anchor="middle" fill="#2e7d32" font-size="9" font-weight="600">Consumer 1</text>
+    <text x="774" y="132" text-anchor="middle" fill="#999" font-size="7">← P0, P1</text>
+    <rect x="837" y="96" width="105" height="46" rx="6" fill="#fff" stroke="#2e7d32" stroke-width="1"/>
+    <text x="889" y="116" text-anchor="middle" fill="#2e7d32" font-size="9" font-weight="600">Consumer 2</text>
+    <text x="889" y="132" text-anchor="middle" fill="#999" font-size="7">← P2</text>
+    <text x="830" y="162" text-anchor="middle" fill="#2e7d32" font-size="7" font-weight="600">1 Partition → 1 Consumer (Group 내)</text>
+    <text x="830" y="174" text-anchor="middle" fill="#aaa" font-size="7">1 Consumer → 여러 Partition 가능</text>
+    <text x="830" y="186" text-anchor="middle" fill="#999" font-size="7">역할: 쿠폰 재고 차감, 발급 확인</text>
+    <text x="830" y="200" text-anchor="middle" fill="#999" font-size="7">→ Group 내 중복 소비 X</text>
+    <text x="830" y="226" text-anchor="middle" fill="#2e7d32" font-size="7" font-weight="600">Leader에서 pull</text>
+
+    <!-- Pull lines: Group A ← Leaders -->
+    <line x1="720" y1="115" x2="357" y2="120" stroke="#2e7d32" stroke-width="1" stroke-dasharray="4" marker-end="url(#pullG)"/>
+    <line x1="720" y1="122" x2="522" y2="165" stroke="#2e7d32" stroke-width="1" stroke-dasharray="4" marker-end="url(#pullG)"/>
+    <line x1="835" y1="115" x2="674" y2="204" stroke="#2e7d32" stroke-width="1" stroke-dasharray="4" marker-end="url(#pullG)"/>
+    <text x="695" y="108" fill="#2e7d32" font-size="6" font-weight="600">pull</text>
+
+    <!-- ═══ CONSUMER GROUP B ═══ -->
+    <rect x="710" y="255" width="240" height="140" rx="10" fill="#fef5f5" stroke="#ad1457" stroke-width="1.5"/>
+    <text x="830" y="275" text-anchor="middle" fill="#ad1457" font-size="11" font-weight="700">Consumer Group B</text>
+    <text x="830" y="289" text-anchor="middle" fill="#999" font-size="8">group.id = "analytics"</text>
+    <rect x="722" y="300" width="105" height="40" rx="6" fill="#fff" stroke="#ad1457" stroke-width="1"/>
+    <text x="774" y="320" text-anchor="middle" fill="#ad1457" font-size="9" font-weight="600">Consumer 1</text>
+    <text x="774" y="334" text-anchor="middle" fill="#999" font-size="7">← P0</text>
+    <rect x="837" y="300" width="105" height="40" rx="6" fill="#fff" stroke="#ad1457" stroke-width="1"/>
+    <text x="889" y="320" text-anchor="middle" fill="#ad1457" font-size="9" font-weight="600">Consumer 2</text>
+    <text x="889" y="334" text-anchor="middle" fill="#999" font-size="7">← P1, P2</text>
+    <text x="830" y="362" text-anchor="middle" fill="#ad1457" font-size="7" font-weight="600">같은 메시지를 독립 소비 (1:N)</text>
+    <text x="830" y="374" text-anchor="middle" fill="#999" font-size="7">역할: 발급 통계, 대시보드</text>
+    <text x="830" y="390" text-anchor="middle" fill="#ad1457" font-size="6" font-weight="600">Leader에서 pull</text>
+
+    <!-- Pull lines: Group B ← Leaders -->
+    <line x1="720" y1="318" x2="357" y2="130" stroke="#ad1457" stroke-width="1" stroke-dasharray="4" marker-end="url(#pullP)"/>
+    <line x1="835" y1="318" x2="522" y2="175" stroke="#ad1457" stroke-width="1" stroke-dasharray="4" marker-end="url(#pullP)"/>
+    <line x1="835" y1="325" x2="674" y2="210" stroke="#ad1457" stroke-width="1" stroke-dasharray="4" marker-end="url(#pullP)"/>
+    <text x="695" y="280" fill="#ad1457" font-size="6" font-weight="600">pull</text>
+
+    <!-- ═══ 개념 정리 ═══ -->
+    <rect x="10" y="220" width="175" height="180" rx="8" fill="#fafaf7" stroke="#ddd"/>
+    <text x="97" y="240" text-anchor="middle" fill="#333" font-size="10" font-weight="700">개념 정리</text>
+    <text x="20" y="258" fill="#e67e22" font-size="8" font-weight="700">Producer</text>
+    <text x="20" y="270" fill="#999" font-size="7">메시지를 push (보내는 쪽)</text>
+    <text x="20" y="286" fill="#e67e22" font-size="8" font-weight="700">Broker / Cluster</text>
+    <text x="20" y="298" fill="#999" font-size="7">서버 묶음. 데이터 분산 저장</text>
+    <text x="20" y="314" fill="#333" font-size="8" font-weight="700">Topic / Partition</text>
+    <text x="20" y="326" fill="#999" font-size="7">논리 카테고리 / 물리 분할</text>
+    <text x="20" y="342" fill="#d4a017" font-size="8" font-weight="700">Leader / Follower</text>
+    <text x="20" y="354" fill="#999" font-size="7">R/W는 Leader만. 복제는 Follower</text>
+    <text x="20" y="370" fill="#2e7d32" font-size="8" font-weight="700">Consumer Group</text>
+    <text x="20" y="382" fill="#999" font-size="7">pull 방식. Offset으로 독립 추적</text>
+    <text x="20" y="396" fill="#ad1457" font-size="8" font-weight="700">Offset</text>
+    <text x="20" y="406" fill="#999" font-size="7">Group별 읽은 위치</text>
+
+    <!-- ═══ BOTTOM: CASES ═══ -->
+    <rect x="10" y="420" width="940" height="320" rx="10" fill="#fafaf7" stroke="#ddd" stroke-width="1"/>
+    <text x="480" y="446" text-anchor="middle" fill="#333" font-size="12" font-weight="700">Consumer 수 vs Partition 수 — 핵심 규칙</text>
+
+    <!-- Case 1 -->
+    <rect x="26" y="466" width="440" height="130" rx="8" fill="#f0f9f0" stroke="#2e7d32"/>
+    <text x="246" y="486" text-anchor="middle" fill="#2e7d32" font-size="10" font-weight="700">Consumer 2개 &lt; Partition 3개</text>
+    <rect x="50" y="500" width="80" height="24" rx="4" fill="#fff" stroke="#e67e22"/><text x="90" y="516" text-anchor="middle" fill="#e67e22" font-size="9">P0</text>
+    <rect x="145" y="500" width="80" height="24" rx="4" fill="#fff" stroke="#e67e22"/><text x="185" y="516" text-anchor="middle" fill="#e67e22" font-size="9">P1</text>
+    <rect x="240" y="500" width="80" height="24" rx="4" fill="#fff" stroke="#e67e22"/><text x="280" y="516" text-anchor="middle" fill="#e67e22" font-size="9">P2</text>
+    <line x1="90" y1="526" x2="90" y2="548" stroke="#2e7d32" stroke-width="1.2" marker-end="url(#bd)"/>
+    <line x1="185" y1="526" x2="320" y2="548" stroke="#2e7d32" stroke-width="1.2" marker-end="url(#bd)"/>
+    <line x1="280" y1="526" x2="350" y2="548" stroke="#2e7d32" stroke-width="1.2" marker-end="url(#bd)"/>
+    <rect x="40" y="552" width="120" height="26" rx="5" fill="#fff" stroke="#2e7d32"/><text x="100" y="569" text-anchor="middle" fill="#2e7d32" font-size="9">C1 ← P0</text>
+    <rect x="260" y="552" width="190" height="26" rx="5" fill="#fff" stroke="#2e7d32"/><text x="355" y="569" text-anchor="middle" fill="#2e7d32" font-size="9">C2 ← P1, P2 (2개!)</text>
+
+    <!-- Case 2 -->
+    <rect x="490" y="466" width="448" height="130" rx="8" fill="#fef5f5" stroke="#c0392b"/>
+    <text x="714" y="486" text-anchor="middle" fill="#c0392b" font-size="10" font-weight="700">Consumer 3개 &gt; Partition 2개</text>
+    <rect x="520" y="500" width="80" height="24" rx="4" fill="#fff" stroke="#e67e22"/><text x="560" y="516" text-anchor="middle" fill="#e67e22" font-size="9">P0</text>
+    <rect x="620" y="500" width="80" height="24" rx="4" fill="#fff" stroke="#e67e22"/><text x="660" y="516" text-anchor="middle" fill="#e67e22" font-size="9">P1</text>
+    <line x1="560" y1="526" x2="560" y2="548" stroke="#2e7d32" stroke-width="1.2" marker-end="url(#bd)"/>
+    <line x1="660" y1="526" x2="660" y2="548" stroke="#2e7d32" stroke-width="1.2" marker-end="url(#bd)"/>
+    <rect x="520" y="552" width="95" height="26" rx="5" fill="#fff" stroke="#2e7d32"/><text x="567" y="569" text-anchor="middle" fill="#2e7d32" font-size="9">C1 ← P0</text>
+    <rect x="625" y="552" width="95" height="26" rx="5" fill="#fff" stroke="#2e7d32"/><text x="672" y="569" text-anchor="middle" fill="#2e7d32" font-size="9">C2 ← P1</text>
+    <rect x="735" y="552" width="105" height="26" rx="5" fill="#fff" stroke="#c0392b" stroke-dasharray="3"/>
+    <text x="787" y="569" text-anchor="middle" fill="#c0392b" font-size="9" font-weight="700">C3 IDLE!</text>
+    <text x="714" y="594" text-anchor="middle" fill="#c0392b" font-size="8">Partition 부족 → C3은 놀고 있음</text>
+
+    <!-- Summary -->
+    <rect x="26" y="612" width="912" height="118" rx="8" fill="#fff" stroke="#e0e0e0"/>
+    <text x="480" y="636" text-anchor="middle" fill="#333" font-size="11" font-weight="700">전체 규칙 한 장 요약</text>
+    <text x="46" y="658" fill="#e67e22" font-size="10" font-weight="700">① Producer</text>
+    <text x="170" y="658" fill="#666" font-size="10">Key의 hash로 Partition 결정 → Leader Broker에 push</text>
+    <text x="46" y="678" fill="#e67e22" font-size="10" font-weight="700">② Broker Cluster</text>
+    <text x="200" y="678" fill="#666" font-size="10">Leader가 R/W, Follower가 복제. 장애 시 ISR에서 새 Leader 선출</text>
+    <text x="46" y="698" fill="#2e7d32" font-size="10" font-weight="700">③ Consumer Group</text>
+    <text x="220" y="698" fill="#666" font-size="10">Leader에서 pull. 1 Partition → 1 Consumer. Group 간 독립 소비 (1:N)</text>
+    <text x="46" y="718" fill="#d4a017" font-size="10" font-weight="700">④ Offset</text>
+    <text x="170" y="718" fill="#666" font-size="10">Group마다 독립 추적. 다른 Group이 같은 메시지를 다시 읽을 수 있다</text>
+
+    <defs>
+        <marker id="ay" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto"><path d="M0,0 L7,2.5 L0,5" fill="#d4a017"/></marker>
+        <marker id="av" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto"><path d="M0,0 L7,2.5 L0,5" fill="#7d3c98"/></marker>
+        <marker id="ac" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto"><path d="M0,0 L7,2.5 L0,5" fill="#148f77"/></marker>
+        <marker id="pullG" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto"><path d="M0,0 L7,2.5 L0,5" fill="#2e7d32"/></marker>
+        <marker id="pullP" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto"><path d="M0,0 L7,2.5 L0,5" fill="#ad1457"/></marker>
+        <marker id="bd" markerWidth="6" markerHeight="5" refX="3" refY="0" orient="auto"><path d="M0,0 L3,5 L6,0" fill="#2e7d32"/></marker>
+    </defs>
+</svg>

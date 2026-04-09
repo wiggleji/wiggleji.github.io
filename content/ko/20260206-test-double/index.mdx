@@ -1,0 +1,731 @@
+---
+title: "테스트 묻고 doubles 로 가"
+date: 2026-02-06
+slug: "20260206_test_double"
+category: "개발"
+tags: ["test", "kotlin", "jvm"]
+description: "explanation of test from unit to e2e"
+---
+
+*Unit부터 부하테스트까지, Mock/Stub/Fake 실전 활용법*
+
+---
+
+# 무엇을 설명하는가
+
+Test double(Mock, Stub, Spy, Fake)이 각각 무엇인지와, Unit 테스트부터 Integration, E2E, 부하 테스트까지 실전에서 언제·어떻게 활용하는지를 다룬다. 실전 시나리오, 안티패턴, 도구 상자까지 포함한다.
+
+---
+
+# 왜 작성하는가
+
+"외부 결제 API를 테스트하려는데 호출 한 번에 100원이라고? 부하 테스트하려면 수십만원 날리라고?"
+
+"다른 팀 마이크로서비스가 불안정해서 우리 E2E 테스트가 매일 빨간불이에요."
+
+"시간 관련 로직을 테스트하려면 `Thread.sleep()`으로 24시간을 기다려야 하나요?"
+
+**묻지 말고 test double로 가자.**
+
+Test double은 단순히 유닛 테스트에서만 쓰는 학술적 개념이 아니다. 실전에서는 비용 절감, 테스트 안정성, 성능 측정의 정확도를 좌우하는 핵심 도구다.
+
+---
+
+# 서론
+
+Test double은 테스트에서 실제 객체를 대신하는 "가짜 객체"의 총칭이다. 마틴 파울러(Martin Fowler)는 이를 영화의 스턴트 더블(stunt double)에 비유했다.
+
+## Stub (스텁)
+**"정해진 답변만 하는 바보 객체"**
+
+```kotlin
+// 항상 같은 값을 반환
+val userRepository = mock<UserRepository> {
+    on { findById(1L) } doReturn User(id = 1L, name = "홍길동")
+}
+```
+
+- 테스트에 필요한 최소한의 응답만 제공
+- 호출 여부는 검증하지 않음
+- 가장 단순하고 많이 쓰이는 형태
+
+## Mock (목)
+**"행동까지 감시하는 객체"**
+
+```kotlin
+val emailService = mock<EmailService>()
+orderService.placeOrder(order)
+
+// 메서드가 호출되었는지 검증
+verify(emailService).sendConfirmationEmail(order.email)
+```
+
+- 특정 메서드가 호출되었는지 검증
+- 호출 횟수, 인자까지 확인 가능
+- 과도하게 쓰면 테스트가 구현에 강하게 결합됨 (Mock Hell)
+
+## Spy (스파이)
+**"실제 객체를 래핑해서 감시"**
+
+```kotlin
+val realList = mutableListOf("a", "b")
+val spyList = spy(realList)
+
+spyList.add("c")
+println(spyList.size) // 3 (실제로 동작함)
+
+verify(spyList).add("c") // 호출 검증도 가능
+```
+
+- 대부분은 실제 구현을 사용
+- 필요한 부분만 stub으로 덮어쓰기 가능
+- Legacy 코드 테스트에 유용
+
+## Fake (페이크)
+**"실제처럼 동작하는 단순 구현"**
+
+```kotlin
+class InMemoryUserRepository : UserRepository {
+    private val users = mutableMapOf<Long, User>()
+
+    override fun save(user: User): User {
+        users[user.id] = user
+        return user
+    }
+
+    override fun findById(id: Long): User? = users[id]
+}
+```
+
+- 실제 동작하는 구현체지만 프로덕션에는 못 씀
+- 예: H2 in-memory DB, FakeS3, InMemoryEventBus
+- 복잡한 로직도 테스트 가능하고 안정적
+
+---
+
+# 본론
+
+## Test Pyramid와 Test Double 전략
+
+Test double을 **어디서, 얼마나** 써야 하는가? Test Pyramid로 이해하자.
+
+```
+        /\
+       /E2E\      ← 적게, 느리게, 비싸게
+      /------\
+     /Integration\ ← 적당히
+    /------------\
+   /   Unit Test  \ ← 많이, 빠르게, 싸게
+  /----------------\
+```
+
+### Unit Test: 전부 Double
+
+**목표**: 단일 클래스/함수의 로직만 검증, 초고속 피드백
+
+```kotlin
+class OrderServiceTest {
+
+    private val paymentClient = mock<PaymentClient>()
+    private val userRepository = mock<UserRepository>()
+    private val emailService = mock<EmailService>()
+
+    private val orderService = OrderService(
+        paymentClient,
+        userRepository,
+        emailService
+    )
+
+    @Test
+    fun `주문 생성 시 결제 실패하면 예외 발생`() {
+        // Given
+        whenever(paymentClient.charge(any())).thenThrow(PaymentFailedException())
+
+        // When & Then
+        assertThrows<OrderException> {
+            orderService.createOrder(orderRequest)
+        }
+    }
+}
+```
+
+**전략**:
+- 모든 외부 의존성을 mock/stub으로 대체
+- 테스트 실행 시간: 밀리초 단위
+- 격리되어 있어서 다른 컴포넌트 영향 없음
+
+### Integration Test: 경계만 Double
+
+**목표**: 컴포넌트 간 상호작용 검증, 내부는 진짜 사용
+
+```kotlin
+@SpringBootTest
+@AutoConfigureTestDatabase
+class OrderIntegrationTest {
+
+    @Autowired
+    lateinit var orderService: OrderService
+
+    @Autowired
+    lateinit var orderRepository: OrderRepository
+
+    @MockBean // 외부 경계만 mock
+    lateinit var paymentClient: PaymentClient
+
+    @Test
+    fun `주문 생성 시 DB에 저장됨`() {
+        // Given
+        whenever(paymentClient.charge(any())).thenReturn(PaymentResult.success())
+
+        // When
+        val order = orderService.createOrder(orderRequest)
+
+        // Then
+        val saved = orderRepository.findById(order.id)
+        assertThat(saved).isNotNull
+        assertThat(saved?.status).isEqualTo(OrderStatus.PAID)
+    }
+}
+```
+
+**전략**:
+- 내부 컴포넌트는 실제 사용 (Service, Repository, DB)
+- 외부 시스템만 mock (외부 API, 다른 마이크로서비스)
+- TestContainers로 실제 DB 사용도 고려
+
+### E2E Test: 외부만 Double
+
+**목표**: 전체 시스템이 실제 환경처럼 동작하는지 검증
+
+```kotlin
+@SpringBootTest(webEnvironment = RANDOM_PORT)
+class OrderE2ETest {
+
+    @LocalServerPort
+    var port: Int = 0
+
+    @Test
+    fun `API를 통한 전체 주문 프로세스`() {
+        // WireMock으로 외부 결제 API만 stub
+        wireMockServer.stubFor(
+            post("/api/v1/charge")
+                .willReturn(ok().withBody("""{"status": "success"}"""))
+        )
+
+        // When: 실제 HTTP 요청
+        val response = RestAssured.given()
+            .port(port)
+            .contentType(ContentType.JSON)
+            .body(orderRequest)
+            .post("/orders")
+
+        // Then
+        response.then()
+            .statusCode(201)
+            .body("status", equalTo("PAID"))
+    }
+}
+```
+
+**전략**:
+- 전체 애플리케이션 실행
+- 불안정하거나 비용이 드는 외부 시스템만 mock
+- 최소한으로 유지 (느리고 깨지기 쉬움)
+
+---
+
+## 실전 시나리오: 언제, 무엇을 Mock할까?
+
+### 시나리오 1: 외부 결제 API 테스트
+
+**문제**:
+- 실제 결제 API는 비용 발생
+- Sandbox 환경도 rate limit 있음
+- 네트워크 불안정하면 테스트 실패
+
+**해결책**: WireMock으로 HTTP 응답 stub
+
+```kotlin
+@Test
+fun `결제 성공 시나리오`() {
+    wireMockServer.stubFor(
+        post(urlEqualTo("/v1/payments"))
+            .withHeader("Authorization", containing("Bearer"))
+            .willReturn(
+                aResponse()
+                    .withStatus(200)
+                    .withHeader("Content-Type", "application/json")
+                    .withBody("""
+                        {
+                            "paymentId": "pay_123",
+                            "status": "COMPLETED",
+                            "amount": 50000
+                        }
+                    """)
+            )
+    )
+
+    val result = paymentClient.charge(chargeRequest)
+    assertThat(result.status).isEqualTo(PaymentStatus.COMPLETED)
+}
+
+@Test
+fun `결제 실패 시나리오`() {
+    wireMockServer.stubFor(
+        post(urlEqualTo("/v1/payments"))
+            .willReturn(
+                aResponse()
+                    .withStatus(402)
+                    .withBody("""{"error": "INSUFFICIENT_FUNDS"}""")
+            )
+    )
+
+    assertThrows<PaymentFailedException> {
+        paymentClient.charge(chargeRequest)
+    }
+}
+
+@Test
+fun `타임아웃 시나리오`() {
+    wireMockServer.stubFor(
+        post(urlEqualTo("/v1/payments"))
+            .willReturn(aResponse().withFixedDelay(5000)) // 5초 지연
+    )
+
+    assertThrows<TimeoutException> {
+        paymentClient.charge(chargeRequest)
+    }
+}
+```
+
+**장점**:
+- 비용 제로, 속도 빠름
+- 모든 에러 케이스 재현 가능
+- 네트워크 불안정성 제거
+
+### 시나리오 2: MSA 환경에서 다른 서비스 의존성
+
+**문제**:
+- 주문 서비스가 사용자 서비스, 재고 서비스에 의존
+- 다른 팀 서비스가 불안정하면 내 테스트 실패
+- 로컬 개발 시 다른 서비스 띄우기 부담
+
+**해결책 1**: MockBean으로 Feign Client stub
+
+```kotlin
+@SpringBootTest
+class OrderServiceTest {
+
+    @MockBean
+    lateinit var userServiceClient: UserServiceClient
+
+    @MockBean
+    lateinit var inventoryServiceClient: InventoryServiceClient
+
+    @Autowired
+    lateinit var orderService: OrderService
+
+    @Test
+    fun `다른 서비스 응답 조합 테스트`() {
+        // Given
+        whenever(userServiceClient.getUser(1L))
+            .thenReturn(UserDto(id = 1L, grade = "VIP"))
+
+        whenever(inventoryServiceClient.checkStock("ITEM-001"))
+            .thenReturn(StockDto(available = true, quantity = 5))
+
+        // When
+        val order = orderService.createOrder(orderRequest)
+
+        // Then
+        assertThat(order.discountRate).isEqualTo(0.1) // VIP 할인
+    }
+}
+```
+
+**해결책 2**: Contract Testing (Spring Cloud Contract, Pact)
+
+```kotlin
+// Consumer 테스트 (주문 서비스)
+@Test
+fun `사용자 서비스 계약 검증`() {
+    stubFor(
+        get(urlEqualTo("/users/1"))
+            .willReturn(okJson("""{"id": 1, "grade": "VIP"}"""))
+    )
+
+    val user = userServiceClient.getUser(1L)
+    assertThat(user.grade).isEqualTo("VIP")
+}
+
+// Producer 테스트 (사용자 서비스)는 이 계약을 보장해야 함
+```
+
+### 시나리오 3: 이메일 발송 같은 Side Effect
+
+**문제**: 테스트 때마다 실제 이메일 발송하면 안 됨
+
+**해결책**: Fake 구현체로 교체
+
+```kotlin
+class FakeEmailService : EmailService {
+    val sentEmails = mutableListOf<Email>()
+
+    override fun send(email: Email) {
+        sentEmails.add(email)
+    }
+}
+
+@Test
+fun `주문 완료 시 확인 이메일 발송`() {
+    // Given
+    val fakeEmailService = FakeEmailService()
+    val orderService = OrderService(emailService = fakeEmailService)
+
+    // When
+    orderService.completeOrder(order)
+
+    // Then
+    assertThat(fakeEmailService.sentEmails).hasSize(1)
+    assertThat(fakeEmailService.sentEmails[0].to).isEqualTo(order.customerEmail)
+    assertThat(fakeEmailService.sentEmails[0].subject).contains("주문 완료")
+}
+```
+
+### 시나리오 4: 시간 의존적인 로직
+
+**문제**:
+- "자정에 쿠폰 만료" 로직을 어떻게 테스트?
+- `Thread.sleep()`으로 기다릴 순 없음
+
+**해결책**: Clock 추상화 + Mock
+
+```kotlin
+// Clock 인터페이스 도입
+interface Clock {
+    fun now(): LocalDateTime
+}
+
+class SystemClock : Clock {
+    override fun now() = LocalDateTime.now()
+}
+
+class CouponService(private val clock: Clock) {
+    fun isExpired(coupon: Coupon): Boolean {
+        return clock.now().isAfter(coupon.expiresAt)
+    }
+}
+
+// 테스트
+@Test
+fun `쿠폰 만료 체크`() {
+    val fixedClock = object : Clock {
+        override fun now() = LocalDateTime.of(2024, 1, 2, 0, 0)
+    }
+
+    val service = CouponService(fixedClock)
+    val coupon = Coupon(expiresAt = LocalDateTime.of(2024, 1, 1, 23, 59))
+
+    assertThat(service.isExpired(coupon)).isTrue()
+}
+```
+
+---
+
+## 부하/성능 테스트: 병목 지점 격리하기
+
+### 왜 부하 테스트에 Test Double이 필요한가?
+
+부하 테스트의 목표는 **우리 시스템의 한계를 찾는 것**이다. 외부 시스템의 한계가 아니라.
+
+**문제 상황**:
+```
+부하 테스트 결과: 초당 100 TPS 처리
+→ 병목이 어디? DB? 애플리케이션 로직? 외부 API?
+→ 외부 API가 rate limit에 걸려서 그런 건 아닐까?
+```
+
+**해결**: 외부 의존성을 mock으로 대체해서 **내부 병목만 측정**
+
+### 시나리오: 결제 시스템 부하 테스트
+
+```kotlin
+@SpringBootTest(webEnvironment = RANDOM_PORT)
+class OrderLoadTest {
+
+    @BeforeEach
+    fun setupMocks() {
+        // 외부 결제 API를 일정한 응답 시간으로 stub
+        wireMockServer.stubFor(
+            post("/payments")
+                .willReturn(
+                    aResponse()
+                        .withStatus(200)
+                        .withFixedDelay(100) // 항상 100ms 소요
+                        .withBody("""{"status": "success"}""")
+                )
+        )
+    }
+
+    @Test
+    fun `초당 1000건 주문 처리 성능 테스트`() {
+        val gatling = Gatling()
+            .rampUsers(1000).during(10.seconds)
+            .exec(
+                http("Create Order")
+                    .post("/orders")
+                    .body(orderJson)
+            )
+
+        gatling.run()
+
+        // 결과 분석:
+        // - 95 percentile 응답 시간
+        // - DB connection pool 고갈 여부
+        // - Thread pool 사용률
+    }
+}
+```
+
+**이제 측정할 수 있는 것**:
+- DB connection pool 크기는 적절한가?
+- Thread pool은 충분한가?
+- Memory leak은 없는가?
+- Circuit breaker가 제대로 동작하는가?
+
+### 다양한 레이턴시 시나리오
+
+```kotlin
+@Test
+fun `외부 API 느려질 때 시스템 동작`() {
+    // 시나리오 1: 정상 (100ms)
+    wireMockServer.stubFor(
+        post("/payments")
+            .inScenario("latency")
+            .whenScenarioStateIs(STARTED)
+            .willReturn(aResponse().withFixedDelay(100))
+            .willSetStateTo("SLOW")
+    )
+
+    // 시나리오 2: 느려짐 (3초)
+    wireMockServer.stubFor(
+        post("/payments")
+            .inScenario("latency")
+            .whenScenarioStateIs("SLOW")
+            .willReturn(aResponse().withFixedDelay(3000))
+    )
+
+    // 테스트: Circuit breaker가 열리는가?
+    // 테스트: Thread가 blocking 되어 전체 시스템이 멈추지 않는가?
+}
+```
+
+### 실전 팁
+
+**DO**:
+- 외부 API는 WireMock/MockServer로 stub
+- DB는 실제 DB 사용 (TestContainers with PostgreSQL)
+- 캐시는 실제 Redis 사용
+- 측정하려는 컴포넌트만 real로
+
+**DON'T**:
+- 모든 걸 mock 하지 마라 (In-memory만으로는 실제 병목 못 찾음)
+- 프로덕션 외부 API에 부하를 주지 마라
+- Sandbox도 rate limit 있으니 주의
+
+---
+
+## 안티패턴: Mock Hell
+
+### 과도한 Mocking
+
+```kotlin
+// 나쁜 예: Mock이 너무 많다
+class OrderServiceTest {
+    val userRepo = mock<UserRepository>()
+    val productRepo = mock<ProductRepository>()
+    val inventoryRepo = mock<InventoryRepository>()
+    val paymentClient = mock<PaymentClient>()
+    val emailService = mock<EmailService>()
+    val smsService = mock<SmsService>()
+    val logService = mock<LogService>()
+    val eventPublisher = mock<EventPublisher>()
+
+    @Test
+    fun `테스트보다 setup이 더 긴 코드`() {
+        whenever(userRepo.findById(any())).thenReturn(user)
+        whenever(productRepo.findById(any())).thenReturn(product)
+        whenever(inventoryRepo.checkStock(any())).thenReturn(true)
+        // ... 10줄 더
+
+        val result = orderService.createOrder(request)
+
+        assertThat(result).isNotNull() // 겨우 이것만 검증
+    }
+}
+```
+
+**문제점**:
+- 테스트 작성이 고통스러움
+- 클래스 설계에 문제가 있다는 신호
+
+**해결책**:
+1. 의존성이 너무 많으면 클래스를 분리하라
+2. Integration test로 올리는 게 나을 수도 있음
+
+### 구현 세부사항에 과도하게 결합
+
+```kotlin
+// 나쁜 예: 내부 구현을 너무 세세하게 검증
+@Test
+fun `주문 생성`() {
+    orderService.createOrder(request)
+
+    verify(userRepo).findById(request.userId)
+    verify(productRepo).findById(request.productId)
+    verify(inventoryRepo).decreaseStock(request.productId, request.quantity)
+    verify(paymentClient).charge(any())
+    verify(orderRepo).save(any())
+    verify(eventPublisher).publish(any())
+    // 리팩토링할 때마다 테스트 깨짐
+}
+```
+
+**더 나은 접근**:
+```kotlin
+@Test
+fun `주문 생성 성공 시 결제되고 이벤트 발행`() {
+    val order = orderService.createOrder(request)
+
+    // 결과만 검증 (how가 아니라 what)
+    assertThat(order.status).isEqualTo(OrderStatus.PAID)
+    verify(eventPublisher).publish(any<OrderCreatedEvent>())
+}
+```
+
+---
+
+## 도구 상자: 실전 라이브러리
+
+### Kotlin/JVM 생태계
+
+| 용도 | 라이브러리 | 특징 |
+|------|-----------|------|
+| Unit Mock | MockK | Kotlin DSL, coroutine 지원 |
+| Unit Mock | Mockito | Java 표준, 안정적 |
+| HTTP Mock | WireMock | Standalone 서버, 시나리오 지원 |
+| HTTP Mock | MockWebServer | OkHttp 기반, 경량 |
+| DB Test | TestContainers | 실제 Docker DB, 격리 보장 |
+| DB Test | H2 | In-memory, 빠르지만 호환성 주의 |
+| Contract | Spring Cloud Contract | Spring 통합 |
+| Contract | Pact | 언어 중립적 |
+
+### 코드 예제: MockK
+
+```kotlin
+val userRepo = mockk<UserRepository>()
+
+// Stub
+every { userRepo.findById(1L) } returns User(1L, "김철수")
+
+// 호출
+val user = userRepo.findById(1L)
+
+// 검증
+verify { userRepo.findById(1L) }
+```
+
+### 코드 예제: WireMock
+
+```kotlin
+@BeforeEach
+fun setup() {
+    wireMockServer = WireMockServer(8089)
+    wireMockServer.start()
+    WireMock.configureFor("localhost", 8089)
+}
+
+@Test
+fun test() {
+    stubFor(
+        get(urlPathEqualTo("/api/users/1"))
+            .willReturn(
+                aResponse()
+                    .withStatus(200)
+                    .withHeader("Content-Type", "application/json")
+                    .withBody("""{"id": 1, "name": "김철수"}""")
+            )
+    )
+
+    // 이제 localhost:8089로 HTTP 요청 가능
+}
+```
+
+---
+
+## 실전 가이드라인
+
+### 언제 Real을 쓸까?
+
+| 컴포넌트 | Unit | Integration | E2E |
+|---------|------|-------------|-----|
+| 비즈니스 로직 | Mock | Real | Real |
+| Database | Mock | Real (TestContainers) | Real |
+| 내부 서비스 | Mock | Real | Real |
+| 외부 API | Stub | Mock (WireMock) | Mock |
+| 이메일/SMS | Fake | Fake | Fake |
+| 시간 | Mock | Real | Real |
+
+### Decision Tree
+
+```
+외부 시스템인가?
+├─ Yes → Mock/Stub 우선
+│   ├─ 비용/Rate Limit? → 무조건 Mock
+│   ├─ 불안정? → Mock
+│   └─ Contract testing 가능? → Consumer-Driven Contract
+│
+└─ No (내부 컴포넌트)
+    ├─ Unit test? → Mock
+    └─ Integration/E2E? → Real
+```
+
+### 황금률
+
+1. **Fast feedback을 위해 mock하라** (Unit test)
+2. **실제 통합을 검증하기 위해 real을 써라** (Integration test)
+3. **비용/안정성 문제면 mock하라** (모든 레벨)
+4. **Mock이 5개 넘으면 설계를 의심하라**
+5. **"무엇"을 검증하고, "어떻게"는 검증하지 마라**
+
+---
+
+# 결론
+
+Test double은 도구다. 망치를 들면 모든 게 못으로 보이듯, mock을 알면 모든 걸 mock하고 싶어진다.
+
+하지만 진짜 실력은 **언제 mock하고, 언제 real을 쓸지 아는 것**이다.
+
+- Unit test: 전부 mock해서 빠르게
+- Integration test: 경계만 mock해서 실제로
+- E2E test: 외부만 mock해서 안정적으로
+- Load test: 측정 대상만 real로
+
+이제 묻지 말고 doubles로 가자. 외부 API 1만 번 호출하지 말고, WireMock으로 해결하자. MSA 의존성 때문에 테스트가 깨지면, MockBean으로 격리하자. 시간 로직 테스트하려고 24시간 기다리지 말고, Clock을 mock하자.
+
+테스트는 비용이 아니라 투자다. 그리고 test double은 그 투자 수익률을 극대화하는 도구다.
+
+---
+
+## 참고 자료
+
+- Martin Fowler, "Mocks Aren't Stubs" (2007)
+- Growing Object-Oriented Software, Guided by Tests (GOOS)
+- Test Driven Development: By Example (Kent Beck)
+- [WireMock 공식 문서](http://wiremock.org/)
+- [MockK 공식 문서](https://mockk.io/)
+- [Pact Contract Testing](https://docs.pact.io/)
+
+---
+
+**다음 글 예고**: "TDD, 설계가 아니라 대화다" - Red-Green-Refactor 사이클로 코드와 나누는 대화법

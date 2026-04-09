@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 700 340" xmlns="http://www.w3.org/2000/svg" font-family="Fira Code, monospace">
+  <rect width="700" height="340" fill="#fefefe"/>
+
+  <!-- Title -->
+  <text x="350" y="24" text-anchor="middle" fill="#333" font-size="13" font-weight="700">Token Bucket — 동작 원리</text>
+  <text x="350" y="40" text-anchor="middle" fill="#aaa" font-size="9">버킷 용량: 10 | Refill Rate: 10/s</text>
+
+  <!-- Column headers -->
+  <text x="58" y="66" text-anchor="middle" fill="#999" font-size="10" font-weight="600">시각</text>
+  <text x="320" y="66" text-anchor="middle" fill="#999" font-size="10" font-weight="600">버킷 상태</text>
+  <text x="610" y="66" text-anchor="middle" fill="#999" font-size="10" font-weight="600">이벤트</text>
+  <line x1="30" y1="74" x2="670" y2="74" stroke="#eee" stroke-width="1"/>
+
+  <!-- Row: t=0s — Full 10/10 -->
+  <text x="58" y="100" text-anchor="middle" fill="#333" font-size="11">t=0s</text>
+  <g transform="translate(140, 86)">
+    <rect x="0" y="0" width="26" height="18" rx="3" fill="#2980b9"/><rect x="30" y="0" width="26" height="18" rx="3" fill="#2980b9"/>
+    <rect x="60" y="0" width="26" height="18" rx="3" fill="#2980b9"/><rect x="90" y="0" width="26" height="18" rx="3" fill="#2980b9"/>
+    <rect x="120" y="0" width="26" height="18" rx="3" fill="#2980b9"/><rect x="150" y="0" width="26" height="18" rx="3" fill="#2980b9"/>
+    <rect x="180" y="0" width="26" height="18" rx="3" fill="#2980b9"/><rect x="210" y="0" width="26" height="18" rx="3" fill="#2980b9"/>
+    <rect x="240" y="0" width="26" height="18" rx="3" fill="#2980b9"/><rect x="270" y="0" width="26" height="18" rx="3" fill="#2980b9"/>
+  </g>
+  <text x="610" y="100" text-anchor="middle" fill="#2e7d32" font-size="10">가득 참 (10/10)</text>
+
+  <!-- Row: t=0.1s — 8/10 -->
+  <text x="58" y="136" text-anchor="middle" fill="#333" font-size="11">t=0.1s</text>
+  <g transform="translate(140, 122)">
+    <rect x="0" y="0" width="26" height="18" rx="3" fill="#2980b9"/><rect x="30" y="0" width="26" height="18" rx="3" fill="#2980b9"/>
+    <rect x="60" y="0" width="26" height="18" rx="3" fill="#2980b9"/><rect x="90" y="0" width="26" height="18" rx="3" fill="#2980b9"/>
+    <rect x="120" y="0" width="26" height="18" rx="3" fill="#2980b9"/><rect x="150" y="0" width="26" height="18" rx="3" fill="#2980b9"/>
+    <rect x="180" y="0" width="26" height="18" rx="3" fill="#2980b9"/><rect x="210" y="0" width="26" height="18" rx="3" fill="#2980b9"/>
+    <rect x="240" y="0" width="26" height="18" rx="3" fill="#eee" stroke="#ccc" stroke-width="0.8"/>
+    <rect x="270" y="0" width="26" height="18" rx="3" fill="#eee" stroke="#ccc" stroke-width="0.8"/>
+  </g>
+  <text x="610" y="136" text-anchor="middle" fill="#666" font-size="10">요청 2건 소비 (8/10)</text>
+
+  <!-- Row: t=0.2s — 9/10 -->
+  <text x="58" y="172" text-anchor="middle" fill="#333" font-size="11">t=0.2s</text>
+  <g transform="translate(140, 158)">
+    <rect x="0" y="0" width="26" height="18" rx="3" fill="#2980b9"/><rect x="30" y="0" width="26" height="18" rx="3" fill="#2980b9"/>
+    <rect x="60" y="0" width="26" height="18" rx="3" fill="#2980b9"/><rect x="90" y="0" width="26" height="18" rx="3" fill="#2980b9"/>
+    <rect x="120" y="0" width="26" height="18" rx="3" fill="#2980b9"/><rect x="150" y="0" width="26" height="18" rx="3" fill="#2980b9"/>
+    <rect x="180" y="0" width="26" height="18" rx="3" fill="#2980b9"/><rect x="210" y="0" width="26" height="18" rx="3" fill="#2980b9"/>
+    <rect x="240" y="0" width="26" height="18" rx="3" fill="#2e7d32"/>
+    <rect x="270" y="0" width="26" height="18" rx="3" fill="#eee" stroke="#ccc" stroke-width="0.8"/>
+  </g>
+  <text x="610" y="172" text-anchor="middle" fill="#2e7d32" font-size="10">+1 보충 (9/10)</text>
+
+  <!-- Row: t=0.3s — 0/10 BURST! -->
+  <rect x="26" y="186" width="648" height="28" rx="4" fill="#c0392b" opacity="0.04"/>
+  <text x="58" y="206" text-anchor="middle" fill="#c0392b" font-size="11" font-weight="700">t=0.3s</text>
+  <g transform="translate(140, 194)">
+    <rect x="0" y="0" width="26" height="18" rx="3" fill="#eee" stroke="#ccc" stroke-width="0.8"/>
+    <rect x="30" y="0" width="26" height="18" rx="3" fill="#eee" stroke="#ccc" stroke-width="0.8"/>
+    <rect x="60" y="0" width="26" height="18" rx="3" fill="#eee" stroke="#ccc" stroke-width="0.8"/>
+    <rect x="90" y="0" width="26" height="18" rx="3" fill="#eee" stroke="#ccc" stroke-width="0.8"/>
+    <rect x="120" y="0" width="26" height="18" rx="3" fill="#eee" stroke="#ccc" stroke-width="0.8"/>
+    <rect x="150" y="0" width="26" height="18" rx="3" fill="#eee" stroke="#ccc" stroke-width="0.8"/>
+    <rect x="180" y="0" width="26" height="18" rx="3" fill="#eee" stroke="#ccc" stroke-width="0.8"/>
+    <rect x="210" y="0" width="26" height="18" rx="3" fill="#eee" stroke="#ccc" stroke-width="0.8"/>
+    <rect x="240" y="0" width="26" height="18" rx="3" fill="#eee" stroke="#ccc" stroke-width="0.8"/>
+    <rect x="270" y="0" width="26" height="18" rx="3" fill="#eee" stroke="#ccc" stroke-width="0.8"/>
+  </g>
+  <text x="610" y="206" text-anchor="middle" fill="#c0392b" font-size="10" font-weight="700">9건 버스트! (0/10)</text>
+
+  <!-- Row: t=0.4s — 1/10 -->
+  <text x="58" y="242" text-anchor="middle" fill="#333" font-size="11">t=0.4s</text>
+  <g transform="translate(140, 230)">
+    <rect x="0" y="0" width="26" height="18" rx="3" fill="#2e7d32"/>
+    <rect x="30" y="0" width="26" height="18" rx="3" fill="#eee" stroke="#ccc" stroke-width="0.8"/>
+    <rect x="60" y="0" width="26" height="18" rx="3" fill="#eee" stroke="#ccc" stroke-width="0.8"/>
+    <rect x="90" y="0" width="26" height="18" rx="3" fill="#eee" stroke="#ccc" stroke-width="0.8"/>
+    <rect x="120" y="0" width="26" height="18" rx="3" fill="#eee" stroke="#ccc" stroke-width="0.8"/>
+    <rect x="150" y="0" width="26" height="18" rx="3" fill="#eee" stroke="#ccc" stroke-width="0.8"/>
+    <rect x="180" y="0" width="26" height="18" rx="3" fill="#eee" stroke="#ccc" stroke-width="0.8"/>
+    <rect x="210" y="0" width="26" height="18" rx="3" fill="#eee" stroke="#ccc" stroke-width="0.8"/>
+    <rect x="240" y="0" width="26" height="18" rx="3" fill="#eee" stroke="#ccc" stroke-width="0.8"/>
+    <rect x="270" y="0" width="26" height="18" rx="3" fill="#eee" stroke="#ccc" stroke-width="0.8"/>
+  </g>
+  <text x="610" y="242" text-anchor="middle" fill="#2e7d32" font-size="10">+1 보충 (1/10)</text>
+
+  <!-- Legend -->
+  <line x1="30" y1="270" x2="670" y2="270" stroke="#eee" stroke-width="1"/>
+  <rect x="150" y="284" width="18" height="14" rx="3" fill="#2980b9"/>
+  <text x="176" y="296" fill="#666" font-size="9">사용 가능</text>
+  <rect x="280" y="284" width="18" height="14" rx="3" fill="#2e7d32"/>
+  <text x="306" y="296" fill="#666" font-size="9">보충됨</text>
+  <rect x="390" y="284" width="18" height="14" rx="3" fill="#eee" stroke="#ccc" stroke-width="0.8"/>
+  <text x="416" y="296" fill="#666" font-size="9">소비됨 (빈 슬롯)</text>
+
+  <!-- Key insight -->
+  <text x="350" y="326" text-anchor="middle" fill="#e67e22" font-size="11" font-weight="700">핵심: 쌓여 있던 토큰만큼 순간 버스트가 허용된다</text>
+</svg>

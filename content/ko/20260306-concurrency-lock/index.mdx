@@ -1,0 +1,812 @@
+---
+title: "희노애Lock"
+date: 2026-03-06
+slug: "20260306_concurrency_lock"
+category: "개발"
+tags: ["concurrency", "lock", "database", "kotlin", "jvm"]
+description: "비관적 락, 낙관적 락, 원자적 SQL — 도메인별 동시성 제어 전략 비교"
+---
+
+# 무엇을 설명하는가
+
+동시성 문제가 발생하는 이유(DB 격리 수준)부터 시작해, 세 가지 동시성 제어 전략(비관적 락, 낙관적 락, 원자적 SQL)을 실제 커머스 도메인의 시나리오별로 비교한다.
+
+"어떤 락을 써야 하는가?"라는 질문에 대해, 도메인의 경합 특성과 비즈니스 룰의 복잡도에 따라 전략이 달라진다는 것을 코드와 함께 알아본다.
+
+# 왜 작성하는가
+
+기능개발을 하다 보면, "동시성 문제"라는 단어를 자주 듣는다. 그리고 "락을 걸면 되지 않나요?"라는 질문도 자주 나온다.
+또한, 기능 배포 이후에 에러 로그 중 `Deadlock detected`나 `OptimisticLockingFailureException`와 같은 에러를 만나면 등골이 오싹해진다.
+
+"동시성? 그냥 `synchronized` 걸면 되는 거 아니야?", "그냥 락 걸고 끝내죠?" 라는 말을 들었다면..
+
+축하한다 동시성을 고민할 수 있는 개발자가 될 준비가 되었다.
+
+대부분 동시성을 고려한 코드를 작성할 때, 대부분의 코드는 단일 인스턴스에서 정상 작동할 것이다.
+하지만 `ExecutorService`, `CountDownLatch`, `Semaphore` 등을 활용한 테스트코드, 혹은 운영 WAS가 2대 이상이 되는 순간,
+
+무수한 동시성 이슈가 발생하고, 우리는 고민에 빠지게 된다.
+
+동시성 제어를 위한 락은 하나의 정답이 아니다. 도메인마다 경합 패턴이 다르고, 그에 따라 최적의 전략도 달라진다.
+
+본인은 커머스 프로젝트를 구현하면서 세 가지 도메인(재고, 쿠폰, 좋아요)에 각각 다른 전략을 적용했다. 처음에는 "비관적 락이면 다 되지 않나?"라고 생각했지만, 도메인마다 경합 패턴이 다르고, 그에 따라 최적의 전략도 달랐다.
+
+**락은 하나의 정답이 아니라, 도메인과 상황에 맞는 선택, 즉 전략이다.** 그 선택에 따라 DB와 개발자의 마음은 말 그대로 희노애락이다.
+
+<img src="https://contents.kyobobook.co.kr/sih/fit-in/550x0/gift/pdt/1595/S1697368794401.jpg" width="300" />
+
+*즐겁다!*
+
+<br />
+
+---
+
+# 서론
+
+## 동시성 문제는 왜 발생하는가
+
+두 개의 트랜잭션이 같은 데이터를 동시에 읽고, 각각 수정한 뒤 저장하면 어떻게 될까?
+
+```
+재고 = 5
+
+  Transaction A                Transaction B
+       |                            |
+  SELECT stock → 5                  |
+       |                       SELECT stock → 5
+  UPDATE stock = 4                  |
+  COMMIT                            |
+       |                       UPDATE stock = 4  ← A의 차감이 사라졌다!
+       |                       COMMIT
+
+결과: 재고 = 4 (기대값: 3)
+```
+
+이것이 **Lost Update** — 읽기와 쓰기 사이에 다른 트랜잭션이 끼어들면서 업데이트가 유실되는 현상이다.
+
+## 동시성 제어의 레이어
+
+이 문제를 해결하려면 어디에서 제어해야 할까? 동시성 제어는 크게 두 레이어로 나뉜다.
+
+| 레이어          | 방법                                          | 범위                        | 한계                    |
+| --------------- | --------------------------------------------- | --------------------------- | ----------------------- |
+| **Application** | `synchronized`, `ReentrantLock`, `Semaphore`  | 단일 JVM 프로세스 내        | WAS 2대 이상이면 무력화 |
+| **Database**    | 비관적 락, 낙관적 락, 원자적 SQL, UNIQUE 제약 | DB에 접근하는 모든 프로세스 | DB 부하, 데드락 가능성  |
+
+애플리케이션 레벨의 락(`synchronized` 등)은 **같은 JVM 안에서만** 유효하다. 서버가 2대 이상이면 각 JVM이 독립적으로 동작하므로, 서로 다른 서버의 스레드 간에는 잠금이 공유되지 않는다.
+
+```
+  Server A (JVM 1)               Server B (JVM 2)
+       |                              |
+  synchronized {                 synchronized {
+    SELECT stock → 5               SELECT stock → 5
+    UPDATE stock = 4               UPDATE stock = 4  ← 서로 모름!
+  }                              }
+```
+
+결국 다중 인스턴스 환경에서는 **모든 서버가 공유하는 지점 — DB**에서 동시성을 제어해야 한다. 이 글에서 다루는 세 가지 전략(비관적 락, 낙관적 락, 원자적 SQL)은 모두 DB 레이어의 전략이다.
+
+> 분산 환경에서는 Redis 기반 분산 락(Redisson 등)이라는 선택지도 있다. 이는 Application과 DB 사이의 별도 레이어로, DB 부하를 줄이면서 다중 인스턴스 간 동시성을 제어할 수 있다. 다만 이 글에서는 DB 레이어 전략에 집중한다.
+
+그렇다면 DB는 동시 트랜잭션을 어떻게 처리하는가? 먼저 **격리 수준(Isolation Level)** 을 알아야 한다.
+
+## DB 격리 수준
+
+SQL 표준은 네 가지 격리 수준을 정의한다. 각 수준은 "어떤 이상 현상(anomaly)을 허용하는가"로 구분된다.
+
+| 격리 수준        | Dirty Read | Non-Repeatable Read | Phantom Read  | Lost Update |
+| ---------------- | ---------- | ------------------- | ------------- | ----------- |
+| READ UNCOMMITTED | O          | O                   | O             | O           |
+| READ COMMITTED   | X          | O                   | O             | O           |
+| REPEATABLE READ  | X          | X                   | O (InnoDB: X) | O           |
+| SERIALIZABLE     | X          | X                   | X             | X           |
+
+**용어 정리:**
+
+- **Dirty Read**: 다른 트랜잭션이 아직 커밋하지 않은 데이터를 읽는 것
+- **Non-Repeatable Read**: 같은 SELECT를 두 번 실행했는데 결과가 다른 것 (다른 트랜잭션이 사이에 UPDATE+COMMIT)
+- **Phantom Read**: 같은 조건으로 SELECT 했는데 행이 추가/삭제된 것 (다른 트랜잭션이 사이에 INSERT/DELETE+COMMIT)
+- **Lost Update**: 두 트랜잭션이 같은 행을 읽고 각각 수정하면 나중 커밋이 먼저 커밋을 덮어쓰는 것
+
+### MySQL InnoDB의 기본: REPEATABLE READ
+
+MySQL InnoDB의 기본 격리 수준은 `REPEATABLE READ`다. MVCC(Multi-Version Concurrency Control)를 사용해 트랜잭션 시작 시점의 스냅샷을 읽는다.
+
+```
+  Transaction A (snapshot)       Transaction B (snapshot)
+       |                              |
+  BEGIN (snapshot: stock=5)           |
+       |                         BEGIN (snapshot: stock=5)
+  SELECT stock → 5                    |
+       |                         SELECT stock → 5
+  UPDATE stock = 4                    |
+  COMMIT                              |
+       |                         SELECT stock → 5 (여전히 자기 스냅샷!)
+       |                         UPDATE stock = 4 ← Lost Update!
+       |                         COMMIT
+```
+
+`REPEATABLE READ`는 "같은 SELECT를 반복해도 결과가 같다"를 보장하지만, **그 읽은 값을 기반으로 UPDATE하는 것까지 보호하지는 않는다** (단, InnoDB의 경우 `SELECT ... FOR UPDATE` 등 잠금 읽기를 사용하면 보호된다).
+
+> ### SERIALIZABLE은 왜 안 쓰는가
+>
+> `SERIALIZABLE`이면 모든 문제가 해결된다. 하지만:
+>
+> - 모든 SELECT가 `SELECT ... LOCK IN SHARE MODE`처럼 동작
+> - 동시 요청이 사실상 직렬 실행
+> - 처리량이 극도로 제한됨
+>
+> 프로덕션에서 `SERIALIZABLE`을 기본 격리 수준으로 쓰는 경우는 거의 없다. 대신, **필요한 곳에서만** 선택적으로 동시성을 제어한다. 이것이 락 전략이 필요한 이유다.
+
+## Read-Modify-Write vs Check-Then-Act
+
+동시성 문제는 크게 두 가지 패턴으로 분류된다. 어떤 패턴인지에 따라 해결 방식이 달라진다.
+
+### Read-Modify-Write (Lost Update)
+
+"읽고 → 수정하고 → 쓰기" 사이에 다른 트랜잭션이 끼어드는 패턴.
+
+```
+  Transaction A                Transaction B
+       |                            |
+  read(stock=5)                     |
+       |                       read(stock=5)
+  compute(5-1=4)                    |
+  write(stock=4)                    |
+       |                       compute(5-1=4)
+       |                       write(stock=4)  ← A의 결과 유실
+```
+
+- **재고 차감**: 5에서 2개 차감 → 결과는 3이어야 하는데 4
+- **좋아요 카운트**: 50명이 눌렀는데 likeCount = 48
+
+### Check-Then-Act (TOCTOU)
+
+"확인하고 → 행동하기" 사이에 상태가 바뀌는 패턴. Time-Of-Check to Time-Of-Use(TOCTOU).
+
+```
+  Transaction A                Transaction B
+       |                            |
+  check(AVAILABLE?) → true          |
+       |                       check(AVAILABLE?) → true  ← 둘 다 통과!
+  use(coupon) → USED                |
+       |                       use(coupon) → USED  ← 이중 사용!
+```
+
+- **쿠폰 이중 사용**: AVAILABLE 확인 → 사용 처리 사이에 다른 요청이 먼저 사용
+- **좋아요 중복**: existsBy(false) 확인 → INSERT 사이에 다른 요청이 먼저 INSERT
+
+<br />
+
+---
+
+# 본론
+
+## 1. 전략 소개: 세 가지 락
+
+### 비관적 락 (Pessimistic Lock)
+
+"충돌이 일어날 것이라 **비관적으로** 가정하고, 미리 잠근다."
+
+```sql
+SELECT * FROM product_stocks WHERE product_id = 1 FOR UPDATE;
+-- 이 행에 대한 다른 트랜잭션의 쓰기(+FOR UPDATE 읽기)가 블로킹된다
+```
+
+- DB 행에 배타적 잠금(exclusive lock)을 건다
+- 잠금을 획득한 트랜잭션이 COMMIT/ROLLBACK할 때까지 다른 트랜잭션은 대기
+- **충돌 시**: 대기 후 진행 (실패가 아닌 순서 보장)
+
+### 낙관적 락 (Optimistic Lock)
+
+"충돌이 거의 없을 것이라 **낙관적으로** 가정하고, 충돌 시 감지한다."
+
+```sql
+-- 읽을 때: version 기억
+SELECT * FROM user_coupons WHERE id = 1;  -- version = 0
+
+-- 쓸 때: version 비교
+UPDATE user_coupons SET status = 'USED', version = 1
+WHERE id = 1 AND version = 0;
+-- affected rows = 0이면 다른 트랜잭션이 먼저 수정 → 충돌 감지
+```
+
+- 별도의 잠금 없이 `version` 컬럼으로 충돌 감지
+- JPA의 `@Version` 어노테이션이 자동으로 관리
+- **충돌 시**: `ObjectOptimisticLockingFailureException` → 트랜잭션 롤백
+
+### 원자적 SQL (Atomic Update)
+
+"읽기와 쓰기를 하나의 SQL 문으로 합쳐서, 애초에 충돌이 불가능하게 만든다."
+
+```sql
+UPDATE products SET like_count = like_count + 1 WHERE id = 1;
+-- DB가 내부적으로 행 수준 잠금을 관리, 애플리케이션은 잠금을 의식하지 않음
+```
+
+- `read → compute → write`가 단일 SQL 문 안에서 원자적으로 처리
+- 애플리케이션 레벨에서 잠금 코드 불필요
+- **충돌 시**: 충돌 자체가 불가능 (DB가 순서 보장)
+
+### 비교표
+
+|                                    | 비관적 락                         | 낙관적 락                      | 원자적 SQL                                         |
+| ---------------------------------- | --------------------------------- | ------------------------------ | -------------------------------------------------- |
+| **잠금 방식**                      | DB 행 잠금 (`FOR UPDATE`)         | `@Version` 컬럼 비교           | 잠금 없음, DB 원자적 `UPDATE`                      |
+| **블로킹**                         | Yes — 다른 트랜잭션 대기          | No                             | No                                                 |
+| **충돌 시**                        | 대기 후 진행                      | Exception → 실패/재시도        | 충돌 불가                                          |
+| **트랜잭션 참여**                  | Yes                               | Yes                            | Yes (DB 트랜잭션 참여, JPA 영속성 컨텍스트만 우회) |
+| **영속성 컨텍스트(1차 캐시) 반영** | Yes                               | Yes                            | No (우회)                                          |
+| **데드락 위험**                    | Yes (다중 행)                     | No                             | No                                                 |
+| **적합한 상황**                    | 높은 경합 + 트랜잭션 내 롤백 필요 | 낮은 경합 + 트랜잭션 내 일관성 | 단순 산술 + 항상 성공                              |
+
+---
+
+## 2. 시나리오 1: 좋아요 카운트 — 원자적 SQL
+
+### 문제
+
+50명이 동시에 좋아요를 누른다. `likeCount`가 정확히 50이어야 한다.
+
+```
+  Transaction 1                Transaction 2
+       |                            |
+  SELECT likeCount → 0              |
+       |                       SELECT likeCount → 0
+  UPDATE likeCount = 1              |
+  COMMIT                            |
+       |                       UPDATE likeCount = 1  ← Lost Update!
+       |                       COMMIT
+  ...
+결과: likeCount = 43 (기대값: 50)
+```
+
+### 특성 분석
+
+- 연산: 단순 `+1` / `-1` 산술
+- 비즈니스 룰: 없음 (카운트 증감이 전부)
+- 경합: 높을 수 있음 (인기 상품에 다수 유저)
+- 실패 조건: 없음 (좋아요는 항상 성공)
+
+### 해결: 원자적 SQL
+
+```kotlin
+// JpaRepository — native query
+@Modifying(clearAutomatically = true)
+@Query(
+    "UPDATE products SET like_count = like_count + 1 WHERE id = :productId",
+    nativeQuery = true,
+)
+fun incrementLikeCountAtomic(productId: Long): Int
+```
+
+`+1` 연산이 DB 내부에서 원자적으로 실행된다. 50개의 UPDATE가 동시에 들어와도 DB가 내부적으로 직렬 처리하여 `likeCount = 50`이 보장된다.
+
+```
+  Transaction 1                Transaction 2
+       |                            |
+  UPDATE like_count                 |
+    = like_count + 1                |
+    (DB 내부: 0 → 1)                |
+       |                       UPDATE like_count
+       |                         = like_count + 1
+       |                         (DB 내부: 1 → 2)
+  COMMIT                            |
+       |                       COMMIT
+
+결과: likeCount = 2 ✅ (유실 없음, read-modify-write가 단일 SQL)
+```
+
+### 왜 비관적 락이 아닌가?
+
+좋아요는 항상 성공해야 하는 연산이다. 비관적 락을 쓰면 모든 요청을 직렬화하지만, 실패할 이유가 없는 단순 산술에 직렬 대기는 불필요한 낭비다. 원자적 SQL은 잠금 없이 최고의 처리량을 제공한다.
+
+### 보너스: 같은 유저의 중복 좋아요 방지
+
+좋아요에는 또 다른 동시성 문제가 있다. 같은 유저가 같은 상품에 동시에 좋아요를 누르면?
+
+```kotlin
+// LikeService
+fun addLike(userId: Long, productId: Long) {
+    if (likeRepository.existsByUserIdAndProductId(userId, productId)) {  // Check
+        throw CoreException(CONFLICT, "이미 좋아요한 상품입니다.")
+    }
+    likeRepository.save(Like(userId, productId))  // Act
+    productRepository.incrementLikeCountAtomic(productId)
+}
+```
+
+`existsBy` 체크와 `save` 사이에 다른 스레드가 끼어들 수 있다 (TOCTOU). 하지만 여기서는 별도의 락이 필요 없다:
+
+```
+  Transaction A                Transaction B
+       |                            |
+  existsBy(1,10) → false            |
+       |                       existsBy(1,10) → false  ← TOCTOU!
+  INSERT likes(1,10) → 성공          |
+  like_count + 1                     |
+  COMMIT                             |
+       |                       INSERT likes(1,10)
+       |                         → UNIQUE 위반!
+       |                       ROLLBACK (like_count+1 미도달)
+
+결과: likeCount = 1, likes 행 = 1 ✅
+```
+
+`likes` 테이블의 `(user_id, product_id)` UNIQUE 제약이 최후의 방어선 역할을 한다. UNIQUE 위반 시 트랜잭션이 롤백되면서 `incrementLikeCountAtomic`도 함께 롤백된다. 결과: `likeCount = 1`, `likes` 행 = 1.
+
+### 동시성 테스트
+
+```kotlin
+@Test
+fun `동시에 50명이 좋아요를 눌러도 likeCount가 정확히 50이어야 한다`() {
+    val threadCount = 50
+    val latch = CountDownLatch(threadCount)
+    val executor = Executors.newFixedThreadPool(threadCount)
+
+    repeat(threadCount) { i ->
+        executor.submit {
+            try {
+                likeFacade.addLike(userId = (i + 1).toLong(), productId = product.id)
+            } finally { latch.countDown() }
+        }
+    }
+    latch.await(30, TimeUnit.SECONDS)
+
+    val finalProduct = productJpaRepository.findById(product.id).get()
+    assertThat(finalProduct.likeCount).isEqualTo(50)  // ✅ 유실 없음
+}
+
+@Test
+fun `동시에 같은 사용자가 같은 상품에 좋아요를 눌러도 likeCount는 1이어야 한다`() {
+    val threadCount = 10
+    val successCount = AtomicInteger(0)
+    val failCount = AtomicInteger(0)
+
+    repeat(threadCount) {
+        executor.submit {
+            try {
+                likeFacade.addLike(userId = 1L, productId = product.id)
+                successCount.incrementAndGet()
+            } catch (e: Exception) {
+                failCount.incrementAndGet()
+            } finally { latch.countDown() }
+        }
+    }
+    latch.await(30, TimeUnit.SECONDS)
+
+    assertThat(successCount.get()).isEqualTo(1)   // ✅ 1개만 성공
+    assertThat(failCount.get()).isEqualTo(9)
+    assertThat(finalProduct.likeCount).isEqualTo(1)
+    assertThat(likeRows).hasSize(1)
+}
+```
+
+---
+
+## 3. 시나리오 2: 쿠폰 사용 — 낙관적 락
+
+### 문제
+
+사용자가 쿠폰을 적용해서 주문한다. 같은 쿠폰이 두 번 사용되면 안 된다.
+
+```
+  Transaction A                Transaction B
+       |                            |
+  SELECT coupon                     |
+    (status=AVAILABLE)              |
+       |                       SELECT coupon
+       |                         (status=AVAILABLE)
+  UPDATE status=USED                |
+  COMMIT → 성공                      |
+       |                       UPDATE status=USED
+       |                       COMMIT → 성공 ← 이중 사용!
+```
+
+### 특성 분석
+
+- 연산: 상태 전이 (`AVAILABLE → USED`)
+- 비즈니스 룰: `requireAvailable()`, 만료 확인, 소유자 검증
+- 경합: 낮음 — 쿠폰은 단일 사용자 소유. 동시 사용은 더블클릭이나 비정상 요청뿐
+- 트랜잭션: 주문 생성과 같은 `@Transactional` 안에서 처리되어야 함
+
+### 해결: 낙관적 락 (@Version)
+
+```kotlin
+// Infrastructure — JPA Entity에 @Version 추가
+@Entity
+@Table(name = "user_coupons")
+class UserCouponEntity(
+    // ...
+    @Version
+    @Column(nullable = false)
+    var version: Long = 0L
+        protected set
+)
+
+// Domain Service — 특별한 잠금 코드 없음
+fun useForOrder(userCouponId: Long, orderId: Long): UserCoupon {
+    val userCoupon = userCouponRepository.findById(userCouponId)  // 일반 SELECT
+        ?: throw CoreException(NOT_FOUND, "쿠폰이 존재하지 않습니다.")
+    userCoupon.use(orderId)
+    return userCouponRepository.save(userCoupon)  // JPA가 @Version 자동 검사
+}
+```
+
+JPA가 `UPDATE ... WHERE version = 0`을 실행하고, 이미 version이 바뀌었으면 `ObjectOptimisticLockingFailureException`을 던진다. 이 예외는 트랜잭션 전체를 롤백시켜 주문도 함께 취소된다.
+
+```
+  Transaction A                Transaction B
+       |                            |
+  SELECT coupon                     |
+    (AVAILABLE, version=0)          |
+       |                       SELECT coupon
+       |                         (AVAILABLE, version=0)
+  use(orderId=100)                  |
+  UPDATE SET status='USED'          |
+    WHERE version=0                 |
+    → version 0→1, 성공 ✅           |
+  COMMIT                            |
+       |                       use(orderId=200)
+       |                       UPDATE SET status='USED'
+       |                         WHERE version=0
+       |                         → version already 1
+       |                         → OptimisticLockException ❌
+       |                       ROLLBACK (주문도 함께 롤백)
+```
+
+### 왜 비관적 락이 아닌가?
+
+처음에는 비관적 락으로 구현했다. 동작은 했지만:
+
+```kotlin
+// Before (비관적 락) — 불필요한 복잡성
+class UserCouponRepositoryImpl(
+    private val userCouponJpaRepository: UserCouponJpaRepository,
+    @PersistenceContext private val entityManager: EntityManager,  // 불필요한 의존
+) {
+    fun findByIdForUpdate(id: Long): UserCoupon? {
+        val entity = userCouponJpaRepository.findById(id).orElse(null) ?: return null
+        entityManager.refresh(entity, LockModeType.PESSIMISTIC_WRITE)  // FOR UPDATE
+        return entity.toDomain()
+    }
+}
+```
+
+쿠폰은 단일 유저 소유라 높은 경합이 발생할 수 없다. 불필요한 행 잠금, `EntityManager` 의존, `findByIdForUpdate` 메서드가 생겼다. 낙관적 락으로 전환하면:
+
+```kotlin
+// After (낙관적 락) — EntityManager 제거, findByIdForUpdate 제거
+class UserCouponRepositoryImpl(
+    private val userCouponJpaRepository: UserCouponJpaRepository,
+    // EntityManager 불필요
+) {
+    fun findById(id: Long): UserCoupon? =
+        userCouponJpaRepository.findById(id).orElse(null)?.toDomain()
+}
+```
+
+코드가 단순해지고, 경합이 없는 정상 흐름에서 성능도 향상된다.
+
+### 왜 원자적 SQL이 아닌가?
+
+쿠폰 사용은 주문 생성과 같은 `@Transactional` 안에서 실행된다. 원자적 SQL(`@Modifying` native query)은 DB 트랜잭션에는 참여하므로 롤백 자체는 된다. 문제는 JPA 영속성 컨텍스트를 우회한다는 점이다:
+
+- 같은 트랜잭션 내 다른 JPA 엔티티 연산과 **엔티티 상태 불일치** 가능 (DB는 변경됐지만 1차 캐시의 엔티티는 이전 값)
+- 쿠폰 사용 여부(`isUsed`) 변경 후 같은 트랜잭션에서 해당 엔티티를 다시 조회하면 **stale 데이터**를 읽게 됨
+- 다중 쿠폰 적용 시 비즈니스 로직(사용 여부 확인 → 상태 변경)이 SQL로 분산되어 도메인 모델의 응집도가 떨어짐
+
+**다른 엔티티와 함께 JPA 영속성 컨텍스트 안에서 관리되어야 하는 경우 → 낙관적 락이 적합하다.**
+
+### 동시성 테스트
+
+```kotlin
+@Test
+fun `동시에 5명이 같은 쿠폰으로 주문해도 쿠폰은 1번만 사용되어야 한다`() {
+    val threadCount = 5
+    val successCount = AtomicInteger(0)
+    val failCount = AtomicInteger(0)
+
+    repeat(threadCount) {
+        executor.submit {
+            try {
+                orderFacade.placeOrder(userId = 1L, cmd = PlaceOrderCommand(
+                    items = listOf(OrderItemCommand(productId = product.id, quantity = 1)),
+                    userCouponId = userCoupon.id,
+                ))
+                successCount.incrementAndGet()
+            } catch (e: Exception) {
+                failCount.incrementAndGet()
+            } finally { latch.countDown() }
+        }
+    }
+    latch.await(30, TimeUnit.SECONDS)
+
+    assertThat(successCount.get()).isEqualTo(1)  // ✅ 1개만 성공
+    assertThat(failCount.get()).isEqualTo(4)
+    assertThat(finalCoupon.status).isEqualTo(UserCouponStatus.USED)
+}
+```
+
+---
+
+## 4. 시나리오 3: 재고 차감 — 비관적 락
+
+### 문제
+
+재고 5개인 상품에 10명이 동시 주문한다. 5명만 성공하고, 재고는 정확히 0이어야 한다.
+
+```
+  Transaction A                Transaction B
+       |                            |
+  SELECT stock → 5                  |
+  validate(5 >= 1) ✓                |
+       |                       SELECT stock → 5
+       |                       validate(5 >= 1) ✓
+  UPDATE stock = 4                  |
+  COMMIT                            |
+       |                       UPDATE stock = 4  ← Lost Update!
+       |                       COMMIT
+  ...
+결과: stock = 2 (기대값: 0), 7명이 주문 성공 ← 초과 판매
+```
+
+### 특성 분석
+
+- 연산: 검증 → 차감 → 상태 전이 (품절 처리)
+- 비즈니스 룰: `validate(qty)`, `decrement(qty)`, `isSoldOut`
+- 경합: 높음 — 인기 상품에 다수 유저가 동시 주문
+- 트랜잭션: 검증-차감-주문 생성이 하나의 트랜잭션으로 묶여야 함
+
+### 해결: 비관적 락 (SELECT ... FOR UPDATE)
+
+```kotlin
+// Domain Model — 비즈니스 룰 소유
+class ProductStock(productId: Long, quantity: Int, val id: Long = 0L) {
+    var quantity: Int = quantity; private set
+    val isSoldOut: Boolean get() = quantity == 0
+
+    fun validate(qty: Int) {
+        if (qty <= 0) throw CoreException(BAD_REQUEST, "주문 수량은 1 이상이어야 합니다.")
+        if (quantity < qty) throw CoreException(BAD_REQUEST, "재고가 부족합니다. 현재 재고: $quantity")
+    }
+
+    fun decrement(qty: Int) {
+        if (quantity - qty < 0) throw CoreException(BAD_REQUEST, "재고가 부족합니다.")
+        this.quantity -= qty
+    }
+}
+
+// Service — FOR UPDATE로 행 잠금 → 도메인 모델에서 차감
+@Transactional
+fun decrementStock(productId: Long, quantity: Int): ProductStock {
+    val stock = productStockRepository.findByProductIdForUpdate(productId)
+        ?: throw CoreException(NOT_FOUND, "재고 정보가 존재하지 않습니다.")
+    stock.decrement(quantity)
+    return productStockRepository.save(stock)
+}
+
+// Repository — EntityManager.refresh로 행 잠금 획득
+override fun findByProductIdForUpdate(productId: Long): ProductStock? {
+    val entity = productStockJpaRepository.findByProductId(productId) ?: return null
+    entityManager.refresh(entity, LockModeType.PESSIMISTIC_WRITE)
+    return entity.toDomain()
+}
+```
+
+**왜 `@Lock` 어노테이션이 아닌 `entityManager.refresh`인가?**
+
+일반적으로 비관적 락은 Spring Data JPA의 `@Lock(PESSIMISTIC_WRITE)` 어노테이션으로도 적용할 수 있다. 하지만 이 경우 같은 트랜잭션 안에서 엔티티가 이미 조회된 상태라면 JPA 1차 캐시에서 반환되어 **실제 DB에 FOR UPDATE 쿼리가 나가지 않을 수 있다.** `entityManager.refresh()`는 1차 캐시를 무시하고 DB에서 강제로 다시 읽으면서 잠금을 획득하므로, 같은 트랜잭션 내에서도 안전하게 최신 값 + 잠금을 보장한다.
+
+`findByProductIdForUpdate()`가 호출되면 해당 행에 배타적 잠금이 걸린다. 다른 트랜잭션은 이 행에 접근하려 하면 대기한다. 먼저 잠금을 획득한 트랜잭션이 차감-주문 생성-커밋을 완료하면 잠금이 해제되고, 다음 트랜잭션이 **최신 값**을 읽어서 진행한다.
+
+```
+  Transaction A                Transaction B
+       |                            |
+  SELECT ... FOR UPDATE             |
+    → stock=5, 행 잠금 획득 🔒         |
+       |                       SELECT ... FOR UPDATE
+       |                         → 대기 중... ⏳ (A가 잠금 보유)
+  validate(5 >= 1) ✓                |
+  decrement → stock=4               |
+  주문 생성, COMMIT                   |
+    → 잠금 해제 🔓                    |
+       |                         → stock=4, 잠금 획득 🔒
+       |                       validate(4 >= 1) ✓
+       |                       decrement → stock=3
+       |                       주문 생성, COMMIT
+       |                         → 잠금 해제 🔓
+
+결과: stock = 3 ✅ (직렬 처리, Lost Update 불가)
+```
+
+### 데드락 방지: productId 정렬
+
+여러 상품을 동시에 주문할 때, 트랜잭션마다 잠금 순서가 다르면 데드락이 발생한다:
+
+```
+  Transaction A                Transaction B
+       |                            |
+  LOCK 상품1 ✅                      |
+       |                       LOCK 상품2 ✅
+  LOCK 상품2 시도                     |
+    → 대기 (B가 보유 중)               |
+       |                       LOCK 상품1 시도
+       |                         → 대기 (A가 보유 중)
+       |                            |
+       ╳ ─── 서로 영원히 대기: 데드락! ─── ╳
+```
+
+해결은 간단하다. 모든 트랜잭션이 같은 순서로 잠금을 획득하면 된다:
+
+```kotlin
+val sortedItems = cmd.items.sortedBy { it.productId }  // productId 오름차순 정렬
+sortedItems.forEach { item ->
+    productStockService.decrementStock(item.productId, item.quantity)
+}
+```
+
+여기서 `decrementStock()`에도 `@Transactional`이 선언되어 있지만, Spring의 기본 전파 속성은 `REQUIRED`이므로 Facade의 `placeOrder()` 트랜잭션에 **합류**한다. 즉, 모든 재고 차감과 주문 생성이 하나의 트랜잭션 안에서 실행되며, 어느 하나라도 실패하면 전체가 롤백된다.
+
+### 그런데, 원자적 SQL로도 가능하지 않은가?
+
+맞다. 기술적으로는 가능하다:
+
+```kotlin
+// 원자적 SQL 대안
+@Modifying(clearAutomatically = true)
+@Query("""
+    UPDATE product_stocks
+    SET quantity = quantity - :qty
+    WHERE product_id = :productId AND quantity >= :qty
+""", nativeQuery = true)
+fun decrementStock(productId: Long, qty: Int): Int  // affected rows
+
+// Service
+fun decrementStock(productId: Long, quantity: Int): ProductStock {
+    val affected = productStockRepository.decrementStockAtomic(productId, quantity)
+    if (affected == 0) throw CoreException(BAD_REQUEST, "재고가 부족합니다.")
+    return productStockRepository.findByProductId(productId)!!  // 추가 SELECT 필요
+}
+```
+
+native `@Modifying` 쿼리도 Spring `@Transactional` 안에서 실행되므로 롤백 시 함께 롤백된다. "원자적 SQL이 트랜잭션에 참여하지 않는다"는 것은 흔한 오해다. 우회하는 것은 **JPA 영속성 컨텍스트(1차 캐시, dirty checking)**이지, **DB 트랜잭션** 자체가 아니다.
+
+### 비관적 락 vs 원자적 SQL: 코드와 트레이드오프
+
+| 기준             | 비관적 락 (채택)             | 원자적 SQL (미채택)            |
+| ---------------- | ---------------------------- | ------------------------------ |
+| 비즈니스 룰 위치 | 도메인 모델 (`ProductStock`) | SQL (`WHERE quantity >= :qty`) |
+| 단위 테스트      | 가능 (순수 Kotlin)           | 불가 (DB 필요)                 |
+| 처리량           | 직렬 대기                    | 높음 (잠금 대기 없음)          |
+| 데드락           | 가능 (정렬로 해결)           | 불가                           |
+| 확장성           | 도메인 메서드 추가           | SQL 수정 필요                  |
+| 차감 후 결과     | 즉시 사용 가능               | 추가 SELECT 필요               |
+
+**핵심 트레이드오프는 비즈니스 룰의 위치다.**
+
+비관적 락은 `validate()`, `decrement()`, `isSoldOut`이 도메인 모델에 있다. 단위 테스트만으로 재고 로직을 검증할 수 있고, 예약 재고나 구매 제한 같은 요구사항이 추가되면 도메인 메서드를 추가하면 된다.
+
+원자적 SQL은 `WHERE quantity >= :qty`가 SQL에 있다. 현재는 이 조건 하나로 충분하지만, 요구사항이 추가될 때마다 SQL을 수정해야 하고, 모든 재고 룰이 DB 레벨에서 관리되어야 한다.
+
+### 성능 차이 추정
+
+`OrderFacade.placeOrder()` 흐름에서 비관적 락은 재고 차감(Step 3)에서 획득하고 커밋(Step 7 이후)까지 보유한다:
+
+```
+Step 3. 재고 차감 ← 비관적 락 획득 / 원자적 SQL은 여기서 실행+해제
+Step 4. 브랜드 조회 + 스냅샷 생성
+Step 5. 쿠폰 할인 계산
+Step 6. 주문 생성 (INSERT)
+Step 7. 쿠폰 사용 처리 (UPDATE)
+        ← COMMIT → 비관적 락 해제
+```
+
+|                          | 비관적 락                | 원자적 SQL          |
+| ------------------------ | ------------------------ | ------------------- |
+| 락 보유 시간 (추정)      | ~10-50ms (Step 3~COMMIT) | ~1-5ms (UPDATE문만) |
+| 10 스레드 시 마지막 대기 | ~270ms (9 × 30ms)        | ~27ms (9 × 3ms)     |
+| 차이                     | 약 **5~10배**            |                     |
+
+비관적 락은 Step 3~7 전체 동안 다른 스레드를 대기시킨다. 원자적 SQL은 UPDATE 문 실행 시간(~수 ms)만 DB 내부에서 직렬 처리하고, 나머지는 병렬 실행된다.
+
+현재 소-중규모에서는 유의미한 병목이 아니다. 하지만 플래시 세일 같은 고경합 시나리오에서는 차이가 커진다. 정확한 수치는 실제 부하 테스트(`k6`, `JMeter`)로 측정해야 한다.
+
+### 느슨한 결합이 전략 전환을 가능하게 만든다
+
+원래 `Product`에 `stock` 필드가 있었다. 이 구조에서는 원자적 SQL로 재고만 차감해도 `products` 행의 다른 컬럼(likeCount 등)과 충돌 가능성이 있었다.
+
+`ProductStock`을 별도 테이블(`product_stocks`)로 분리한 뒤에는 `quantity` 하나만 관리하므로, 원자적 SQL이 깔끔하게 적용 가능한 구조가 되었다. 지금은 도메인 모델 중심 설계를 우선해서 비관적 락을 선택했지만, 성능 병목이 실측되면 **Stock 도메인만 변경**하여 원자적 SQL로 전환할 수 있다.
+
+**느슨한 결합이 전략 선택의 자유도를 높인다.**
+
+### 동시성 테스트
+
+```kotlin
+@Test
+fun `동시에 10명이 재고 5개 상품을 주문하면 5명만 성공해야 한다`() {
+    val threadCount = 10
+    val successCount = AtomicInteger(0)
+    val failCount = AtomicInteger(0)
+
+    repeat(threadCount) { i ->
+        executor.submit {
+            try {
+                orderFacade.placeOrder(
+                    userId = (i + 1).toLong(),
+                    cmd = PlaceOrderCommand(
+                        items = listOf(OrderItemCommand(productId = product.id, quantity = 1)),
+                    ),
+                )
+                successCount.incrementAndGet()
+            } catch (e: Exception) {
+                failCount.incrementAndGet()
+            } finally { latch.countDown() }
+        }
+    }
+    latch.await(30, TimeUnit.SECONDS)
+
+    assertThat(successCount.get()).isEqualTo(5)   // ✅ 5명만 성공
+    assertThat(failCount.get()).isEqualTo(5)
+    assertThat(finalStock.quantity).isEqualTo(0)  // ✅ 재고 정확히 0
+}
+```
+
+---
+
+## 5. 전략 선택 기준
+
+세 시나리오를 관통하는 질문은 하나다: **"이 연산이 얼마나 복잡한가, 그리고 얼마나 자주 충돌하는가?"**
+
+```
+Q1. 비즈니스 룰 없이 단일 컬럼 증감만으로 완결되는가?
+├─ Yes → ✅ Atomic SQL (좋아요: count+1, 끝)
+└─ No  → Q2. 경합 빈도는?
+         ├─ 높음 → ✅ 비관적 락 (재고: 검증→차감→품절전이, 다수 유저 동시)
+         └─ 낮음 → ✅ 낙관적 락 (쿠폰: 상태전이, 단일 유저)
+```
+
+| Domain      | Q1                                 | Q2   | Result     |
+| ----------- | ---------------------------------- | ---- | ---------- |
+| 상품 좋아요 | Yes (count+1, 끝)                  | —    | Atomic SQL |
+| 주문 + 재고 | No (validate→decrement→isSoldOut)  | 높음 | 비관적 락  |
+| 쿠폰        | No (requireAvailable→use 상태전이) | 낮음 | 낙관적 락  |
+
+Q1의 기준은 "수학이 단순한가"가 아니다. **"도메인 모델의 개입 없이 SQL 한 줄로 끝나는가"**다. 재고 차감은 `quantity - N`으로 산술적으로는 단순하지만, 검증(`validate`)과 후속 처리(`isSoldOut → 상태 전이`)가 필요하므로 "No"다.
+
+<br />
+
+---
+
+# 결론
+
+동시성 제어는 하나의 정답이 아니라 도메인에 맞는 선택이다.
+
+| 상황                          | 전략       | 이유                                                            |
+| ----------------------------- | ---------- | --------------------------------------------------------------- |
+| 단순 산술, 항상 성공          | 원자적 SQL | 잠금 없이 최고 처리량. 비즈니스 룰이 없으므로 SQL 한 줄로 완결  |
+| 높은 경합, 복잡한 비즈니스 룰 | 비관적 락  | 직렬화로 확실한 보장. 도메인 모델에서 검증-차감-상태전이를 제어 |
+| 낮은 경합, 충돌이 곧 실패     | 낙관적 락  | 잠금 없이 충돌만 감지. 재시도가 불필요한 경우에 적합            |
+
+"어떤 락을 써야 하나요?"라는 질문에 답하려면, 먼저 도메인을 봐야 한다:
+
+1. **연산의 복잡도**: SQL 한 줄로 끝나는가, 도메인 모델의 개입이 필요한가?
+2. **경합 빈도**: 다수 유저가 같은 자원에 동시 접근하는가, 단일 유저의 중복 요청뿐인가?
+3. **실패 시 행동**: 대기 후 진행해야 하는가, 즉시 실패해도 되는가?
+
+해당 내용을 경험하며 느낀 점은 DB 락 전략을 유연하게 선택하기 위해서는
+대부분 느슨한 결합(Loose Coupling)이 전제되어야 가능하다는 것이다.
+
+결국 락 또한 설계의 일부이기에, 각 특징에 맞게 환경에 맞는 전략을 선택해야 한다.
+
+모든 프로그래밍에서 트레이드오프는 발생하기에...
+
+이게 결국 희노애락 아니겠는가.
+
+---
+
+> Reference
+>
+> - MySQL 8.0 Reference Manual — [InnoDB Transaction Isolation Levels](https://dev.mysql.com/doc/refman/8.0/en/innodb-transaction-isolation-levels.html)
+> - JPA Specification — [Optimistic Locking](https://jakarta.ee/specifications/persistence/3.1/jakarta-persistence-spec-3.1#a2161)
+> - Martin Kleppmann, "Designing Data-Intensive Applications" (2017) — Chapter 7: Transactions - [Book](<https://unidel.edu.ng/focelibrary/books/Designing%20Data-Intensive%20Applications%20The%20Big%20Ideas%20Behind%20Reliable,%20Scalable,%20and%20Maintainable%20Systems%20by%20Martin%20Kleppmann%20(z-lib.org).pdf>)

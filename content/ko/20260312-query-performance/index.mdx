@@ -1,0 +1,959 @@
+---
+title: "조회 성능개선 참고하라고"
+date: 2026-03-12
+slug: "20260312_query_performance"
+category: "개발"
+tags: ["database", "index", "performance", "InnoDB", "MySQL"]
+description: "DB 인덱스의 내부 동작 원리와 설계 전략 — InnoDB 물리 구조부터 복합 인덱스까지"
+---
+
+# 무엇을 설명하는가
+
+데이터 조회 성능을 개선하는 세 가지 전략(DB 인덱스, 캐시, 비정규화)을 간략히 소개하고, 그 중 DB 인덱스의 내부 동작 원리와 설계 전략을 다룬다.
+
+"인덱스를 걸면 빨라진다"는 것은 모두 안다. 하지만 **어떻게, 왜** 빨라지는지, 인덱스 설계 시 무엇이 중요한지, 어떤 쿼리에서 인덱스가 **무용지물**이 되는지를 InnoDB의 물리적 저장 구조와 같이 알아본다.
+
+# 왜 작성하는가
+
+서비스를 개발하거나 운영하다 보면 성능 개선과 관련된 용어를 자주 접하게 된다.
+N+1, 인덱스, 비정규화, 캐시 등 여러 방법이 있으며, 각 상황에 맞는 방법을 올바르게 선택하여 적용해야 한다.
+
+"그거 그냥 캐시하면 안 돼?", "인덱스 걸어" 등 방법을 제시하는 건 쉽지만, 그 방법의 타당성을 검증하는 건 어렵다. 만약 얘기대로 단순히 캐시를 붙였는데 캐시 미스가 발생하면? Redis가 장애를 일으키면? 인덱스 적용 후 쿼리가 그대로 느리거나, 몇 달이 지나고 다시 느려진다면?
+
+올바른 사용을 위해선 도구를 이해하고, 그에 맞는 사용법을 익혀야 한다.
+
+<br />
+
+**만약 여러 가지 전략 중 딱 하나만 골라서 학습하고 적용한다고 하면, 필자는 망설임 없이 DB 인덱스를 선택할 것이다.**
+
+서비스의 규모와 상관없이 DB는 존재해야 하고, 캐싱과 명확히 다른 역할을 갖는다.
+
+캐시는 DB의 부하를 줄여주지만, DB 쿼리 자체의 성능을 개선하지는 않는다. 인덱스가 제대로 설계되어 있지 않으면, 캐시 미스 한 번에 수만 행을 풀 스캔하는 쿼리가 실행된다.
+
+인덱스를 제대로 이해하려면 **DB가 데이터를 어떻게 저장하고 읽는지**를 먼저 알아야 한다. 디스크에서 페이지 단위로 읽는다는 것, B+Tree가 어떻게 생겼는지, Clustered Index와 Secondary Index가 왜 다르게 동작하는지 — 이것들을 이해해야 논리적인 인덱스 설계가 가능하다. 이 글에서는 InnoDB의 물리적 저장 구조부터 시작해서 복합 인덱스 설계 원칙까지를 다룬다.
+
+이 글은 필자가 조회 성능 개선이 필요할 때 참고하기 위해 작성한 기록이다.
+
+<img src="https://i.namu.wiki/i/x4CNOPQ0cpZN8CDnydECrSeDCpgf9N8AOyTPtL_X3K8QoSIoiWV4jRIacIM-chZcBW4-N906UfVvBzSeG5OtEYMXMPTkUO3RKvjZupOHFxG25TZEU-A8uKxMEAA43hWHyPREczRFas5TvvwZApmYUQ.webp" width="300" />
+
+*그냥 참고하라고*
+
+<br />
+
+---
+
+# 서론
+
+## 조회 성능 개선의 세 가지 전략
+
+데이터 조회가 느릴 때, 크게 세 가지 방향으로 접근할 수 있다.
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  Server Application (JVM)                                       │
+│                                                                 │
+│  ┌───────────────────────────────────┐                          │
+│  │  In-Memory Cache (Local)          │  ◄── Caffeine, Guava     │
+│  │  ┌─────────┐ ┌─────────┐          │      EhCache 등           │
+│  │  │ key → v │ │ key → v │  (RAM)   │                          │
+│  │  └─────────┘ └─────────┘          │  휘발성, 인스턴스별 독립       │
+│  └───────────────────────────────────┘                          │
+│                     │                                           │
+│              Cache Miss 시                                       │
+│                     │                                           │
+└─────────────────────┼───────────────────────────────────────────┘
+                      │
+        ┌─────────────┼─────────────┐
+        │             │             │
+        ▼             │             ▼
+┌──────────────┐      │      ┌─────────────────────────────────┐
+│ Redis Server │      │      │  Database (MySQL InnoDB)        │
+│ (별도 인스턴스)  │      │      │                                 │
+│              │      │      │  ┌─ Index (B+Tree) ──────────┐  │
+│ ┌──────────┐ │      │      │  │  쿼리 실행 경로 최적화         │  │
+│ │ key → v  │ │      │      │  │  (디스크에 영구 저장)          │  │
+│ │ key → v  │ │      │      │  └────────────────────────────┘ │
+│ │  (RAM)   │ │      │      │                                 │
+│ └──────────┘ │      │      │  ┌─ Materialized View ────────┐ │
+│              │      └──────┤  │  집계 결과 미리 저장            │ │
+│ 휘발성         │             │  │  (디스크에 영구 저장)           │ │
+│ 별도 인프라     │             │  └────────────────────────────┘ │
+│ 장애 시 소실    │             │                                 │
+└──────────────┘             │  영구 저장, 추가 인프라 불필요         │
+                             │  장애 시에도 항상 동작               │
+     ◄── Cache ──►           └─────────────────────────────────┘
+     DB 접근 횟수를                    ◄── DB 최적화 ──►
+     줄여주지만,                       쿼리 자체를 빠르게
+     DB 쿼리 자체를                    만든다
+     빠르게 하진 않는다
+```
+
+```
+          << 요청 흐름 >>
+
+Client → Cache Hit? ──Yes──→ 즉시 반환
+                        │
+                        No / 장애
+                        │
+                        ▼
+                   DB 쿼리 실행 → 인덱스 있으면 Index Scan, 없으면 Full Table Scan
+```
+
+캐시는 **서버 인메모리(Local Cache)** 또는 **별도 인스턴스(Redis)** 에 위치한다. 둘 다 RAM 기반이라 빠르지만 휘발성이며, 장애 시 결국 DB로 요청이 흘러간다.
+
+반면 인덱스와 Materialized View는 **DB 내부, 디스크에 영구 저장**된다. 별도 인프라 없이 DB만으로 동작하고, 장애 시에도 항상 유효하다.
+
+### 1. 캐시 (Redis, Memcached 등)
+
+DB 접근 **자체를 줄이는** 전략이다. 조회 결과를 인메모리(in-memory)에 저장해두고, 같은 요청이 오면 DB를 거치지 않고 메모리에서 즉시 반환한다.
+
+- **동작 위치**: DB 외부, 별도 인메모리 저장소
+- **효과**: 반복 조회 시 DB 접근 제로. 응답 속도 ms 단위
+- **비용**: 별도 인프라 운영 (Redis 클러스터 등), 메모리 비용
+- **한계**: 휘발성(volatile) — 캐시 서버 재시작 시 데이터 소실. 캐시 미스나 Redis 장애 시 결국 DB 쿼리가 실행됨. 원본 데이터와의 일관성(consistency) 관리 필요
+
+### 2. DB 인덱스
+
+DB가 **쿼리를 실행하는 방식 자체를 최적화**하는 전략이다. 테이블의 특정 컬럼에 B+Tree 구조를 만들어, 풀 스캔 대신 인덱스 탐색으로 필요한 행만 빠르게 찾는다.
+
+- **동작 위치**: DB 내부, 디스크에 영구 저장
+- **효과**: Full table scan → Index scan, filesort 제거
+- **비용**: 인덱스마다 디스크 공간 소비, INSERT/UPDATE 시 B+Tree 갱신 비용
+- **한계**: 쓰기 비용 증가. 잘못된 인덱스 설계 시 효과 없음
+
+### 3. 비정규화 / Materialized View
+
+**쿼리의 복잡도 자체를 줄이는** 전략이다. JOIN이나 GROUP BY가 필요한 계산 결과를 미리 저장해두어, 조회 시 단순한 SELECT만으로 결과를 얻는다.
+
+- **동작 위치**: DB 내부, 디스크에 영구 저장
+- **효과**: 복잡한 JOIN/GROUP BY 제거, 집계 결과 즉시 조회
+- **비용**: 데이터 중복 저장, 동기화 로직 관리
+- **한계**: 원본 데이터 변경 시 동기화 필요. 동기화 지점이 많아지면 유지보수 비용 증가
+
+### 비교
+
+|                 | 캐시               | DB 인덱스        | 비정규화 / MV    |
+| --------------- | ------------------ | ---------------- | ---------------- |
+| **동작 위치**   | DB 외부 (인메모리) | DB 내부 (디스크) | DB 내부 (디스크) |
+| **영속성**      | 휘발성             | 영구             | 영구             |
+| **인프라 비용** | 별도 서버 필요     | 추가 비용 없음   | 추가 비용 없음   |
+| **최적화 대상** | DB 접근 횟수       | 쿼리 실행 효율   | 쿼리 복잡도      |
+| **장애 시**     | DB fallback 필요   | 항상 동작        | 항상 동작        |
+
+이 세 가지는 배타적이 아니라 **보완적**이다. 하지만 우선순위가 있다.
+
+캐시는 강력하지만, 별도 인프라가 필요하고, 장애 시 결국 DB 쿼리가 실행된다. 반면 DB 인덱스는 **추가 인프라 없이, DB만으로 동작하며, 장애 시에도 항상 유효**하다. 서비스 규모와 관계없이 DB는 반드시 존재하고, 인덱스는 그 DB 위에서 동작한다.
+
+캐시를 붙이기 전에 먼저 물어봐야 할 질문은 **"이 쿼리 자체가 충분히 빠른가?"** 다.
+캐시는 애플리케이션이 별도 DB 접근 없이 빠른 응답을 전달하기 위한 보완 전략이지 DB 최적화를 대체하는 것이 아니다.
+
+**DB 최적화가 먼저, 캐시는 그 다음이다.** 이 글에서는 DB 최적화의 핵심인 인덱스에 집중한다.
+
+그리고 인덱스를 제대로 설계하려면 DB가 데이터를 **어떻게 저장하고 읽는지**부터 알아야 한다.
+
+<br />
+
+---
+
+# 본론
+
+## 1. InnoDB의 물리적 저장 구조
+
+### 디스크에서 행까지
+
+```
+MySQL Data Directory (/var/lib/mysql/)
+
+  /var/lib/mysql/
+  │
+  ├── ibdata1              ← System Tablespace (메타데이터, undo logs)
+  ├── ib_logfile0          ← Redo Log (crash recovery)
+  ├── ib_logfile1          ← Redo Log
+  │
+  └── mydb/                ← Database "mydb"
+      ├── users.ibd        ← Table "users" (데이터 + 인덱스 전부)
+      ├── orders.ibd       ← Table "orders"
+      └── products.ibd     ← Table "products"
+```
+
+MySQL은 당연하지만 모든 정보를 파일로 관리하고, 디스크/SSD 등 비휘발성 저장매체에 저장한다. InnoDB는 **하나의 테이블 = 하나의 `.ibd` 파일**로 저장하며, 이 파일 안에 Clustered Index(실제 데이터)와 모든 Secondary Index가 함께 들어있다.
+
+### .ibd 파일 내부: Tablespace → Segment → Extent → Page
+
+```
+┌─────────────────────────────────────────────────────┐
+│                 products.ibd (Tablespace)           │
+├─────────────────────────────────────────────────────┤
+│                                                     │
+│  ┌─ Segment: Clustered Index (PK) ───────────────┐  │
+│  │                                               │  │
+│  │  테이블의 실제 데이터가 PK 순서대로 여기 저장           │  │
+│  │                                               │  │
+│  │  Extent 0 (1MB = 64 pages × 16KB)             │  │
+│  │  ┌──────┬──────┬──────┬──────┬── ─ ─┐         │  │
+│  │  │Page 0│Page 1│Page 2│Page 3│  ... │         │  │
+│  │  │ 16KB │ 16KB │ 16KB │ 16KB │      │         │  │
+│  │  └──────┴──────┴──────┴──────┴── ─ ─┘         │  │
+│  │                                               │  │
+│  │  Extent 1 (1MB = 64 pages)                    │  │
+│  │  ┌──────┬──────┬──────┬── ─ ─┐                │  │
+│  │  │Pg 64 │Pg 65 │Pg 66 │  ... │                │  │
+│  │  └──────┴──────┴──────┴── ─ ─┘                │  │
+│  └───────────────────────────────────────────────┘  │
+│                                                     │
+│  ┌─ Segment: Secondary Index (idx_status) ────────┐ │
+│  │  (status) + PK만 저장. 별도의 B+Tree              │ │
+│  │  Extent (1MB = 64 pages)                       │ │
+│  │  ┌──────┬──────┬──────┬── ─ ─┐                 │ │
+│  │  │Page  │Page  │Page  │  ... │                 │ │
+│  │  └──────┴──────┴──────┴── ─ ─┘                 │ │
+│  └────────────────────────────────────────────────┘ │
+│                                                     │
+│  (Secondary Index를 추가할수록 Segment가 늘어남)          │
+│  (= 저장 공간 증가 + INSERT/UPDATE 시 갱신 비용)          │
+└─────────────────────────────────────────────────────┘
+
+계층 정리:
+  Tablespace (.ibd)
+    └─ Segment (인덱스 하나 = Segment 하나)
+         └─ Extent (1MB = 64 Pages, 공간 할당 단위)
+              └─ Page (16KB, I/O의 최소 단위)
+                   └─ Row (실제 행 데이터)
+```
+
+### Page — 모든 것의 기본 단위 (16KB)
+
+디스크에서 1바이트를 읽든 16KB를 읽든, InnoDB는 항상 **페이지 단위**로 읽는다. 페이지가 모든 I/O의 최소 단위다.
+
+<img src="https://i0.wp.com/jcole.us/blog/files/innodb/20130103/50dpi/Basic_Page_Overview.png" width="300" />
+
+*https://blog.jcole.us/2013/01/03/the-basics-of-innodb-space-file-layout/*
+
+이제 Index 의 페이지를 살펴보자.
+
+<img src="https://i0.wp.com/jcole.us/blog/files/innodb/20130106/50dpi/INDEX_Page_Overview.png" width="300" />
+
+*https://blog.jcole.us/category/mysql/innodb/page/4/*
+
+```
+┌──────────────────────────────────────────────────────┐
+│  Page Header (38 bytes)                              │
+│  ┌────────────────────────────────────────────────┐  │
+│  │  Page Number          : 310                    │  │
+│  │  Page Type            : INDEX (B+Tree node)    │  │
+│  │  Prev Page Pointer    : 309                    │  │
+│  │  Next Page Pointer    : 311                    │  │
+│  │  Level                : 0 (leaf)               │  │
+│  │  Number of Records    : 4                      │  │
+│  └────────────────────────────────────────────────┘  │
+│  ※ Prev/Next Pointer로 리프 페이지끼리 이중 연결 리스트      │
+│                                                      │
+│  Infimum  (가상의 최소 레코드, 탐색 시작점)                 │
+│  Supremum (가상의 최대 레코드, 탐색 끝점)                   │
+│                                                      │
+│  ┌──── Record Area (위 → 아래로 삽입) ───────────────┐  │
+│  │                                                │  │
+│  │  Record 1: [header][PK=101][col1][col2][...]   │  │
+│  │       │                                        │  │
+│  │       ▼  (다음 레코드를 가리키는 포인터)              │  │
+│  │  Record 2: [header][PK=102][col1][col2][...]   │  │
+│  │       │                                        │  │
+│  │       ▼                                        │  │
+│  │  Record 3: [header][PK=103][col1][col2][...]   │  │
+│  │                                                │  │
+│  │  ┌─────────── Free Space ──────────────┐       │  │
+│  │  │  (새 레코드가 채워지는 영역)              │       │  │
+│  │  │  위에서 아래로 줄어듦                    │       │  │
+│  │  └─────────────────────────────────────┘       │  │
+│  └────────────────────────────────────────────────┘  │
+│                                                      │
+│  ┌──── Page Directory (아래 → 위로 증가) ─────────┐     │
+│  │  페이지 내 이진 탐색(binary search)을 위한 슬롯    │     │
+│  │  4~8개 레코드마다 하나의 슬롯 생성                 │     │
+│  │                                             │     │
+│  │  Slot 0 → Infimum                           │     │
+│  │  Slot 1 → Record 1 (PK=101)                 │     │
+│  │  Slot 2 → Record 3 (PK=103)                 │     │
+│  │  Slot 3 → Supremum                          │     │
+│  └─────────────────────────────────────────────┘     │
+│                                                      │
+│  Page Trailer (8 bytes — checksum for integrity)     │
+└──────────────────────────────────────────────────────┘
+
+레코드를 찾는 과정 (페이지 안에서):
+  1. Page Directory의 슬롯으로 이진 탐색 → 대략적 위치
+  2. 슬롯이 가리키는 레코드부터 linked list 따라가며 정확한 위치
+
+Free Space가 0이 되면 → 페이지 꽉 참 → INSERT 시 Page Split 발생
+```
+
+---
+
+## 2. B+Tree — 인덱스의 자료구조
+
+InnoDB의 **모든 인덱스**는 B+Tree 구조다.
+
+```
+            ┌──────────────────────┐
+            │     Root Page        │   Level 2
+            │   항상 메모리에 캐시      │
+            │  <50  │ <100 │ ≥100  │
+            └───┬───┴───┬──┴───┬───┘
+                │       │      │
+       ┌────────┘       │      └────────┐
+       ▼                ▼               ▼
+┌────────┐       ┌────────┐       ┌────────┐
+│Internal│       │Internal│       │Internal│  Level 1
+│ <10    │       │ <60    │       │ <110   │  (보통 메모리에 캐시)
+│ <20    │       │ <70    │       │ <120   │
+│ <30    │       │ <80    │       │ <130   │
+└──┬─┬───┘       └──┬─┬───┘       └──┬─┬───┘
+   │ │              │ │              │ │
+   ▼ ▼              ▼ ▼              ▼ ▼
+┌────┐┌────┐  ┌────┐┌────┐  ┌────┐┌────┐
+│Leaf││Leaf│  │Leaf││Leaf│  │Leaf││Leaf│  Level 0
+│    ││    │  │    ││    │  │    ││    │  (실제 데이터)
+└──┬─┘└─┬──┘  └─┬──┘└─┬──┘  └─┬──┘└────┘
+   │◄───┘◄──────┘◄────┘◄──────┘
+   Leaf끼리 이중 연결 리스트 (◄►)
+   → ORDER BY, 범위 스캔 시 다음 리프로 순차 이동
+```
+
+핵심 특성:
+
+- **Balanced**: 모든 리프 노드의 깊이가 동일 → O(log N) 보장
+- **노드 하나 = 16KB 페이지 하나**
+- **Leaf 연결**: 리프 노드끼리 이중 연결 리스트 → 범위 스캔에 유리
+- **깊이와 용량**: Internal 페이지당 ~1,200개 포인터. Depth 3이면 수억 행 커버. 대부분의 실무 테이블은 3~4회 페이지 읽기로 원하는 행에 도달한다.
+
+> B+Tree 의 구조와 작동 방식을 직접 경험해보고 싶으면 아래 링크로 접속해보자.<br />
+> 위에서 얘기한 Page Split 을 통한 데이터 삽입/삭제/정렬을 직접 체험할 수 있다.<br />
+> https://www.cs.usfca.edu/~galles/visualization/BPlusTree.html
+
+---
+
+## 3. Clustered Index — 테이블 데이터 그 자체
+
+```
+CREATE TABLE reports (
+    id         BIGINT PRIMARY KEY,    ← Clustered Index 키
+    company_id BIGINT,
+    status     VARCHAR(20),
+    amount     DECIMAL(10,2),
+    email      VARCHAR(100),
+    created_at DATETIME
+);
+```
+
+Clustered Index는 **테이블 그 자체**다.
+
+```
+Clustered Index B+Tree:
+
+            ┌──────────────────────┐
+            │     Root (Internal)  │
+            │   50  │  100  │  150 │
+            └───┬───┴───┬───┴───┬──┘
+                │       │       │
+       ┌────────┘       │       └────────┐
+       ▼                ▼                ▼
+┌─────────────┐  ┌─────────────┐  ┌─────────────┐
+│  Leaf Page  │  │  Leaf Page  │  │  Leaf Page  │
+│             │  │             │  │             │
+│ PK=1:       │  │ PK=51:      │  │ PK=101:     │
+│  company=5  │  │  company=8  │  │  company=5  │
+│  status=    │  │  status=    │  │  status=    │
+│   'active'  │  │   'done'    │  │   'active'  │
+│  amount=    │  │  amount=    │  │  amount=    │
+│   50000     │  │   32000     │  │   78000     │
+│  email=     │  │  email=     │  │  email=     │
+│   'kim@..'  │  │   'lee@..'  │  │   'park@..' │
+│             │  │             │  │             │
+│ PK=2:       │  │ PK=52:      │  │ PK=102:     │
+│  (모든       │  │  (모든       │  │  (모든       │
+│   컬럼)      │  │   컬럼)      │  │   컬럼)      │
+│             │◄─┤             │◄─┤             │
+└─────────────┘  └─────────────┘  └─────────────┘
+     ◄──── 이중 연결 리스트 ────►
+```
+
+- 테이블당 정확히 **1개**
+- PK 순서로 행이 물리적으로 정렬/저장됨
+- 리프 노드에 **행의 모든 컬럼**이 저장됨
+- `SELECT * FROM reports WHERE id = 101` → Root → Leaf → **모든 컬럼 즉시 획득**
+
+### PK 타입이 물리적 구조에 미치는 영향
+
+```
+AUTO_INCREMENT (1, 2, 3, 4 ...)
+────────────────────────────────
+항상 맨 오른쪽 리프에 INSERT → 순차 쓰기 → Page Split 거의 없음
+
+┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐
+│1,2,3 │→│4,5,6 │→│7,8,9 │→│10,11 │ ← 여기만 INSERT
+│FULL  │ │FULL  │ │FULL  │ │ ...  │
+└──────┘ └──────┘ └──────┘ └──────┘
+페이지 사용률: ~90-95% (공간 효율 좋음)
+
+
+UUID (랜덤)
+────────────────────────────────
+아무 리프에나 INSERT → 랜덤 쓰기 → Page Split 빈번
+
+┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐
+│a1,c3 │→│b2,d4 │→│e5,f6 │→│g7,h8 │
+│ ↑    │ │  ↑   │ │      │ │ ↑    │
+│INSERT│ │INSERT│ │      │ │INSERT│ ← 여기저기 INSERT
+└──────┘ └──────┘ └──────┘ └──────┘
+페이지 사용률: ~50-70% (공간 낭비 + Split 비용)
+```
+
+---
+
+## 4. Secondary Index — 별도의 탐색 경로
+
+Secondary Index는 **별도의 B+Tree**다. 리프에 **인덱스 컬럼 + PK만** 저장한다.
+
+```
+CREATE INDEX idx_company_status ON reports(company_id, status);
+
+idx_company_status B+Tree:
+
+          ┌───────────────────────┐
+          │    Root (Internal)    │
+          │  (5,'done')│(8,'act') │
+          └─────┬──────┴─────┬────┘
+                │            │
+       ┌────────┘            └────────┐
+       ▼                              ▼
+┌──────────────────┐      ┌───────────────────┐
+│    Leaf Page     │      │    Leaf Page      │
+│                  │      │                   │
+│ (5,'active')→PK=1│      │ (8,'active')→PK=3 │
+│ (5,'active')→PK=4│      │ (8,'done')  →PK=6 │
+│ (5,'done')  →PK=2│      │ (12,'active')→PK=7│
+│                  │◄────►│                   │
+└──────────────────┘      └───────────────────┘
+
+리프에 있는 것:  인덱스 컬럼(company_id, status) + PK(id)
+리프에 없는 것:  amount, email, created_at 등 나머지 컬럼
+```
+
+### 왜 PK만 저장하는가?
+
+```
+만약 행 전체를 저장한다면:
+
+  idx_A 리프: [인덱스키][전체 행 복사본]  ← 500 bytes/행
+  idx_B 리프: [인덱스키][전체 행 복사본]  ← 500 bytes/행
+  idx_C 리프: [인덱스키][전체 행 복사본]  ← 500 bytes/행
+
+  문제 1: 인덱스 3개 = 행 데이터의 3배 저장 공간
+  문제 2: UPDATE 시 모든 인덱스의 복사본도 갱신
+  문제 3: Page Split 시 행의 물리 주소가 바뀌면
+          모든 인덱스의 주소도 갱신 필요
+
+PK만 저장하면:
+
+  idx_A 리프: [인덱스키][PK=8 bytes]
+  idx_B 리프: [인덱스키][PK=8 bytes]
+  idx_C 리프: [인덱스키][PK=8 bytes]
+
+  이점 1: 저장 공간 최소화
+  이점 2: 인덱스 대상이 아닌 컬럼(예: email, amount) 변경 시 Secondary Index 갱신 불필요
+  이점 3: Clustered Index Page Split 시에도 Secondary Index 영향 없음
+
+  대가: 이중 탐색 비용 (Secondary → Clustered Lookup)
+```
+
+### PK 크기가 모든 Secondary Index에 미치는 영향
+
+```
+PK = BIGINT (8 bytes)              PK = UUID CHAR(36) (36 bytes)
+─────────────────────              ──────────────────────────────
+
+idx_email 리프 엔트리:                idx_email 리프 엔트리:
+[email: ~30B] + [PK: 8B]           [email: ~30B] + [PK: 36B]
+= ~38 bytes                         = ~66 bytes
+
+결과:
+- 페이지당 엔트리 수 감소 → 트리 깊이 증가
+- 모든 Secondary Index 크기 부풀림
+- Buffer Pool에서 더 많은 메모리 차지
+- 인덱스가 N개면 영향도 N배
+```
+
+---
+
+## 5. 이중 탐색 vs 커버링 인덱스
+
+Secondary Index에서 원하는 행을 찾아도, SELECT에 필요한 컬럼이 인덱스에 없으면 **Clustered Index를 다시 조회**해야 한다.
+
+### 이중 탐색 (Bookmark Lookup)
+
+```
+인덱스: idx_company_status(company_id, status)
+쿼리:   SELECT email, amount FROM reports
+        WHERE company_id = 5 AND status = 'active';
+
+→ email, amount는 Secondary Index에 없음 → 이중 탐색 필요
+
+
+Step 1: Secondary Index 탐색
+┌──────────────────────┐
+│ idx_company_status   │
+│ Leaf:                │
+│ (5,'active') → PK=1  │──┐
+│ (5,'active') → PK=4  │──┼─ PK 값 획득
+└──────────────────────┘  │
+                          │
+Step 2: PK로 Clustered Index 조회 (행 수만큼 반복!)
+                          │
+     ┌────────────────────┘
+     │  PK=1 → Clustered Index 탐색
+     ▼
+┌──────────────────────────────────────────┐
+│  Clustered Index Leaf:                   │
+│  PK=1: email='kim@..', amount=50000      │ → 획득!
+└──────────────────────────────────────────┘
+     │  PK=4 → 한 번 더
+     ▼
+┌──────────────────────────────────────────┐
+│  PK=4: email='cho@..', amount=15000      │ → 획득!
+└──────────────────────────────────────────┘
+
+매칭 행이 N개 → Clustered Index lookup N번
+각 lookup이 랜덤 I/O일 수 있음 → 느림
+```
+
+### 커버링 인덱스 (Covering Index) — 이중 탐색 회피
+
+```
+같은 인덱스: idx_company_status(company_id, status)
+다른 쿼리:   SELECT company_id, status FROM reports
+             WHERE company_id = 5 AND status = 'active';
+
+→ 필요한 모든 컬럼(company_id, status)이 Secondary Index 안에 이미 있음!
+
+
+Step 1: Secondary Index 탐색 → 끝!
+┌──────────────────────────┐
+│ idx_company_status       │
+│ Leaf:                    │
+│ (5,'active') → PK=1      │ → company_id=5, status='active' 획득!
+│ (5,'active') → PK=4      │ → company_id=5, status='active' 획득!
+└──────────────────────────┘
+
+Clustered Index 조회 없음!
+→ 랜덤 I/O 제거, 리프 페이지 순차 읽기만으로 완료
+
+EXPLAIN Extra: "Using index"
+```
+
+커버링이 되려면, **SELECT 절 + WHERE 절 + ORDER BY 절 + GROUP BY 절의 모든 컬럼**이 해당 인덱스에 포함되어야 한다. 쿼리가 참조하는 컬럼 중 하나라도 인덱스에 없으면 Clustered Index 조회가 필요하다. PK는 항상 Secondary Index에 포함되므로 SELECT에 PK가 있어도 커버링이 된다.
+
+---
+
+## 6. 전체 쿼리 실행 흐름: 시작부터 끝까지
+
+지금까지 배운 것을 하나의 흐름으로 이어보자.
+
+```
+쿼리:    SELECT email, amount FROM reports
+         WHERE company_id = 5 AND status = 'active';
+인덱스:  idx_company_status(company_id, status)
+```
+
+```
+[Client: Application]
+     │  SQL 전송
+     ▼
+┌──────────────────────────────────────────────────┐
+│  MySQL Server Layer                              │
+│  ┌────────────────────────────────────────────┐  │
+│  │  Parser → Optimizer → Execution Engine     │  │
+│  │                                            │  │
+│  │  Optimizer 판단:                            │  │
+│  │  "idx_company_status 사용,                  │  │
+│  │   email/amount 필요하니 이중 탐색 필요"          │  │
+│  └────────────────────────────────────────────┘  │
+└───────────────────┬──────────────────────────────┘
+                    ▼
+┌──────────────────────────────────────────────────┐
+│  InnoDB Storage Engine                           │
+│                                                  │
+│  ┌──────────────────────────────────────────┐    │
+│  │         Buffer Pool (메모리)               │    │
+│  │                                          │    │
+│  │  ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐     │    │
+│  │  │ Root │ │Cache │ │Cache │ │Cache │     │    │
+│  │  │Pages │ │Page A│ │Page B│ │Page C│     │    │
+│  │  │(항상) │ │      │ │      │ │      │     │    │
+│  │  └──────┘ └──────┘ └──────┘ └──────┘     │    │
+│  │                                          │    │
+│  │  Hit → 메모리에서 즉시 반환                   │    │
+│  │  Miss → 디스크에서 읽어서 캐시 후 반환          │    │
+│  └──────────────────┬───────────────────────┘    │
+│                     │ Miss일 때만                  │
+│                     ▼                            │
+│            ┌─────────────────┐                   │
+│            │  Disk I/O       │                   │
+│            │  reports.ibd    │                   │
+│            └─────────────────┘                   │
+└──────────────────────────────────────────────────┘
+```
+
+```
+상세 실행 흐름:
+
+① Secondary Index Root → (5,'active') 이하 → Page 200으로
+
+② Secondary Index Leaf (Page 200)
+   (5, 'active') → PK=1   ✓ 매칭
+   (5, 'active') → PK=4   ✓ 매칭
+   (5, 'done')   → PK=2   ✗ 스캔 종료
+   결과: PK = [1, 4]. email, amount가 필요 → Clustered 조회
+
+③ Clustered Index Root → PK=1 → Page 10으로
+
+④ Clustered Index Leaf (Page 10)
+   PK=1: email='kim@test.com', amount=50000 → 획득!
+
+⑤ PK=4도 동일 과정 반복
+   PK=4: email='cho@test.com', amount=15000 → 획득!
+
+⑥ 결과 반환:
+   email            │ amount
+   ─────────────────┼───────
+   kim@test.com     │ 50000
+   cho@test.com     │ 15000
+```
+
+이 쿼리에서 읽은 페이지:
+
+```
+Secondary Index: Root(1) + Leaf(1) = 2 pages
+Clustered Index: Root(1) + Leaf(1~2) = 2~3 pages
+합계: 4~5 pages × 16KB = 64~80KB
+
+vs Full Table Scan (인덱스 없이):
+   테이블 전체 = 수천~수만 pages = 수십 MB ~ 수 GB
+```
+
+인덱스를 통한 쿼리 실행 흐름을 최대한 간략히 알아보았다.
+
+이제 단일 인덱스와 복합 인덱스의 차이를 통해 인덱스 설계의 중요성을 알아보자.
+
+---
+
+## 7. 단일 인덱스의 한계
+
+```sql
+WHERE company_id = 5 AND status = 'active' ORDER BY created_at DESC LIMIT 20
+```
+
+MySQL은 일반적으로 하나의 쿼리 실행 시 테이블당 인덱스를 1개만 선택한다. Index Merge 예외가 있지만, 복합 인덱스보다 비효율적인 경우가 대부분이다.
+
+### 선택지 A: `idx_company_id` 사용
+
+```
+1. 인덱스에서 company_id=5인 행 찾기 (빠름)
+2. 찾은 행들을 테이블에서 읽기
+3. status='active' 필터링
+4. [!] filesort: 메모리에서 created_at로 정렬  ← 느림
+5. LIMIT 20 적용
+```
+
+### 선택지 B: `idx_created_at` 사용
+
+```
+1. 인덱스에서 created_at 순서대로 순회 (이미 정렬됨)
+2. 각 행을 테이블에서 읽기
+3. company_id=5 AND status='active' 필터링
+4. 조건 맞는 행 20개 모이면 종료
+```
+
+데이터 분포에 따라 운이 좋으면 빠르게 조회할 수 있겠지만, company_id=5인 행이 드문 경우 수만 행을 스캔해야 20개를 찾을 수 있다.
+
+**두 선택지 모두 비효율적이다.**
+
+더 정확한 검색을 위해서는 여러 개의 컬럼을 활용해 검색을 해야 한다.
+이것이 복합 인덱스가 필요한 이유다.
+
+---
+
+## 8. 복합 인덱스 — 여러 컬럼을 하나의 정렬된 전화번호부로
+
+복합 인덱스는 **여러 컬럼을 합쳐서 하나의 정렬된 구조**를 만든다.
+
+`(company_id, status, created_at)` 복합 인덱스의 리프 페이지:
+
+```
+정렬 규칙: company_id → 같으면 status → 같으면 created_at
+
+  (5, 'active', 01-10), PK=42
+  (5, 'active', 01-15), PK=107
+  (5, 'active', 02-20), PK=339
+  (5, 'done',   01-05), PK=15       ← status 바뀜 → created_at 리셋
+  (5, 'done',   03-01), PK=88
+  (8, 'active', 01-03), PK=201      ← company_id 바뀜
+  ...
+```
+
+`WHERE company_id=5 AND status='active' ORDER BY created_at DESC LIMIT 20` 실행 시:
+
+```
+1. 인덱스에서 (5, 'active') 위치로 점프     ← 동등조건 2개 → 정확한 시작점
+2. 그 지점부터 역순으로 20개 읽기            ← created_at 이미 정렬됨!
+3. 끝.                                      ← filesort 없음
+```
+
+### Leftmost Prefix Rule — 왼쪽부터만 사용 가능
+
+복합 인덱스에서 가장 중요한 규칙이다.
+
+```
+인덱스 (A, B, C) 가 있을 때:
+
+  WHERE A = 1                     → 인덱스 사용 O (A만)
+  WHERE A = 1 AND B = 2           → 인덱스 사용 O (A, B)
+  WHERE A = 1 AND B = 2 AND C = 3 → 인덱스 사용 O (A, B, C)
+  WHERE B = 2                     → 사용 불가 (A를 건너뜀)
+  WHERE B = 2 AND C = 3           → 사용 불가 (A를 건너뜀)
+  WHERE A = 1 AND C = 3           → A만 사용, C는 사용 불가 (B를 건너뜀)
+```
+
+전화번호부 비유로 생각하면 직관적이다:
+
+```
+전화번호부: (성, 이름, 전화번호) 순으로 정렬
+
+  김, 민수, 010-1111
+  김, 영희, 010-2222
+  박, 철수, 010-3333
+  이, 민수, 010-4444
+
+- "성=김" → 바로 찾을 수 있다
+- "성=김, 이름=민수" → 바로 찾을 수 있다
+- "이름=민수" → 성을 모르니까 처음부터 끝까지 봐야 한다
+- "성=김, 전화번호=010-2222" → 김씨 전부 보면서 전화번호 비교해야 한다
+```
+
+### 동등 조건 vs 범위 조건 — 순서가 중요한 이유
+
+```
+핵심 규칙:
+  동등(=) 뒤의 컬럼 → 인덱스를 계속 탈 수 있다
+  범위(<, >, BETWEEN) 뒤의 컬럼 → 인덱스를 탈 수 없다
+  (ORDER BY는 범위 조건이 아니라 정렬 연산이다. 뒤에 나오는 E-S-R 규칙 참고)
+```
+
+왜 그런지 시각적으로 보자.
+
+#### Case A: 인덱스 `(user_id, created_at)` — 동등 + 범위
+
+```
+  (1, 2025-12-01)
+  (1, 2026-01-05)   ← BETWEEN 시작점
+  (1, 2026-01-15)
+  (1, 2026-02-20)
+  (1, 2026-03-01)   ← BETWEEN 끝점
+  (1, 2026-03-15)
+  (2, 2025-11-01)
+```
+
+user_id=1로 점프 → created_at 범위만 스캔 → 최소 I/O
+
+#### Case B: 인덱스 `(created_at, user_id)` — 범위 + 동등 (순서 반대)
+
+```
+  (2025-12-01, 1)
+  (2025-12-01, 5)
+  (2025-12-02, 3)
+  (2026-01-05, 1)   ← user_id=1 (있음)
+  (2026-01-05, 7)   ← user_id=7 (스킵)
+  (2026-01-06, 2)   ← user_id=2 (스킵)
+  (2026-01-06, 1)   ← user_id=1 (있음)
+  ...
+```
+
+created_at 범위는 찾지만, 그 안에서 user_id=1이 **흩어져 있어** 전부 스캔해야 한다.
+
+**이것이 "범위 조건 뒤의 컬럼은 인덱스를 탈 수 없다"의 의미다.**
+
+### 인덱스 활용 패턴 정리
+
+```
+인덱스 (A, B, C):
+
+  WHERE A = 1 AND B = 2 ORDER BY C     ← A,B,C 모두 활용 (filesort 없음)
+  |     ^eq      ^eq        ^sort
+  |     동등 뒤    동등 뒤     → 정렬 가능
+
+  WHERE A = 1 AND B > 2 ORDER BY C     ← A,B만 활용, C는 filesort
+  |     ^eq      ^range      ^sort
+  |     동등 뒤    범위 뒤     → B 범위 스캔하면 C 순서가 깨짐
+
+  WHERE A = 1 ORDER BY B, C            ← A,B,C 모두 활용 (filesort 없음)
+  |     ^eq        ^sort ^sort
+  |     동등 뒤     → B,C 순서대로 정렬 가능
+```
+
+---
+
+## 9. 복합 인덱스 설계 원칙
+
+### E-S-R 규칙
+
+실무에서 대부분의 조회 쿼리는 `WHERE + ORDER BY + LIMIT` 패턴이다. 이 패턴에 최적화된 인덱스 컬럼 순서가 **E-S-R** 규칙이다.
+
+```
+E (Equality)  — 동등 조건(=) 컬럼을 먼저
+S (Sort)      — ORDER BY 컬럼을 그 다음
+R (Range)     — 범위 조건(<, >, BETWEEN) 컬럼을 마지막
+```
+
+왜 정렬(S)이 범위(R)보다 먼저인가?
+
+```
+예시 쿼리:
+  SELECT id, email, amount FROM reports
+  WHERE company_id = 5 AND status = 'active'
+    AND amount > 10000
+  ORDER BY created_at DESC LIMIT 20;
+
+
+E → S → R 인덱스: (company_id, status, created_at, amount)
+  → company_id=5 AND status='active' 블록 안에서
+  → created_at DESC 순으로 이미 정렬됨
+  → 하나씩 읽으며 amount > 10000 필터
+  → 20개 찾으면 즉시 종료. filesort 없음
+
+E → R → S 인덱스: (company_id, status, amount, created_at)
+  → amount > 10000 범위는 줄지만
+  → 그 안에서 created_at 정렬이 깨져 있음
+  → 매칭 전체를 모아서 filesort 후 상위 20개 반환
+  → 매칭이 10만 건이면 10만 건 정렬
+```
+
+ORDER BY + LIMIT 패턴에서는 E-S-R이 압도적으로 유리하다. 인덱스 순서대로 읽으면서 LIMIT 수만큼만 반환하면 되기 때문이다.
+
+> 단, 범위 필터가 데이터를 극적으로 줄이고 ORDER BY + LIMIT가 없는 경우에는 E-R-S가 유리할 수 있다. 항상 EXPLAIN으로 확인해야 한다.
+
+### 설계 체크리스트
+
+```
+1. 동등 조건(=) 컬럼을 먼저 놓는다
+2. 동등 조건이 여러 개면 카디널리티가 낮은 것부터
+   (status: 4종류 → company_id: 500종류)
+   → 순서 자체로는 성능 차이 없지만, Leftmost Prefix 재활용 확률이 높아진다
+3. ORDER BY 컬럼을 그 다음에 놓는다
+4. 범위 조건 컬럼을 마지막에 놓는다
+5. 범위 조건은 최대 1개만 인덱스를 탈 수 있다
+6. ORDER BY와 인덱스의 ASC/DESC가 일치해야 filesort를 피한다
+```
+
+### 인덱스를 깨뜨리는 실수들
+
+```sql
+WHERE DATE(created_at) = '2024-01-01'     ← 컬럼에 함수 적용 → 인덱스 X
+WHERE created_at >= '2024-01-01'          ← 직접 비교         → 인덱스 O
+      AND created_at < '2024-01-02'
+
+WHERE LOWER(email) = 'kim@test.com'       ← 컬럼에 함수 적용 → 인덱스 X
+WHERE email = 'kim@test.com'              ← 직접 비교         → 인덱스 O
+
+WHERE amount + 100 > 500                  ← 컬럼에 연산 적용 → 인덱스 X
+WHERE amount > 400                        ← 직접 비교         → 인덱스 O
+```
+
+컬럼에 함수나 연산을 적용하면 인덱스의 B+Tree 정렬 순서가 깨진다. 항상 컬럼 자체를 비교 대상으로 두어야 한다.
+
+---
+
+## 10. Trade-off — 인덱스의 비용
+
+인덱스는 공짜가 아니다.
+
+| 항목            | 설명                                                               |
+| --------------- | ------------------------------------------------------------------ |
+| 디스크 공간     | 인덱스도 디스크에 저장된다. 인덱스가 많을수록 공간 소비            |
+| INSERT 비용     | 새 행 추가 시 모든 인덱스의 B+Tree에도 삽입                        |
+| UPDATE 비용     | 인덱스 컬럼 값 변경 시 B+Tree에서 삭제 후 재삽입 (위치가 바뀌므로) |
+| DELETE 비용     | 인덱스에서도 삭제 마킹 필요                                        |
+| 옵티마이저 부하 | 인덱스가 많으면 최적 인덱스 선택에 더 오래 걸림                    |
+
+### 읽기 vs 쓰기 비율에 따른 판단
+
+```
+읽기 >> 쓰기 (조회 중심 테이블):
+  → 인덱스 추가가 이득. 쓰기 비용을 감수할 가치 있음
+
+쓰기 빈번 (카운터 컬럼, 매 요청마다 UPDATE):
+  → 인덱스의 B+Tree 재정렬이 매번 발생
+  → 읽기 빈도가 쓰기보다 충분히 높아야 인덱스가 이득
+
+거의 안 읽는 컬럼:
+  → 인덱스 추가하면 쓰기 비용만 늘고 읽기 이득 없음. 추가하지 말 것
+```
+
+### 데이터 타입별 특성
+
+| 데이터 타입              | 비교 방식             | 특징                                                                          |
+| ------------------------ | --------------------- | ----------------------------------------------------------------------------- |
+| **INT / BIGINT**         | 정수 비교             | 가장 빠름, 크기 작음 (4/8 byte). PK로 가장 이상적                             |
+| **VARCHAR**              | collation 기반 사전순 | 비교 비용 높음, 가변 길이. `LIKE 'abc%'` → 인덱스 O, `LIKE '%abc'` → 인덱스 X |
+| **DATETIME / TIMESTAMP** | 내부 정수 인코딩      | 비교 자체는 빠름. `DATE(col)='...'` → 인덱스 X, `col >= '...'` → 인덱스 O     |
+| **ENUM**                 | 정의 순서 (정수 비교) | 내부적으로 1,2,3.. 정수 매핑. 정렬이 문자열순 아님에 주의                     |
+
+<br />
+
+---
+
+# 결론
+
+인덱스라는 개념을 한 문장으로 요약하면, **"데이터 쓰기 비용을 지불하고 읽기 속도를 높이는 데이터 구조"**라고 할 수 있다.
+
+```
+물리 구조:
+  Table    → .ibd 파일 (Clustered + 모든 Secondary Index)
+  Index    → Segment (별도의 B+Tree)
+  B+Tree   → Page (16KB) 단위로 구성
+  Page     → Row 데이터 + Page Directory
+
+두 종류의 인덱스:
+  Clustered Index  = 테이블 자체, PK 순서, 리프에 전체 행
+  Secondary Index  = 별도 B+Tree, 리프에 인덱스컬럼+PK만
+
+데이터 조회:
+  PK 조회           → Clustered Index 직접 탐색 (가장 빠름)
+  Secondary 조회    → Secondary → PK 획득 → Clustered 재조회 (이중 탐색)
+  커버링 인덱스     → Secondary만으로 완료 (이중 탐색 회피)
+```
+
+이 구조를 이해하다 보면 자연스럽게 아래와 같이 인덱스 설계 원칙을 정의해 볼 수 있다.
+
+- **E(Equal)-S(Sort)-R(Range) 규칙**: 동등 조건 → 정렬 컬럼 → 범위 조건 순으로 배치
+- **Leftmost Prefix**: 왼쪽부터만 인덱스를 탈 수 있다. 하나의 복합 인덱스가 여러 쿼리를 커버할 수 있다
+- **범위 뒤는 깨진다**: 범위 조건 뒤의 컬럼은 인덱스 정렬이 보장되지 않는다
+- **EXPLAIN으로 확인**: 이론이 아닌 실측으로 검증. 옵티마이저의 판단은 데이터 분포에 따라 달라진다
+- **Trade-off**: 인덱스는 읽기를 빠르게 하지만 쓰기를 느리게 한다. 읽기/쓰기 비율을 고려해야 한다
+
+결국 인덱스 설계는 **쿼리를 먼저 보는 것**에서 시작한다. "어떤 쿼리가 실행되는가"를 리스트업하고, 각 쿼리의 WHERE/ORDER BY/LIMIT 패턴을 분석하면, 필요한 인덱스가 자연스럽게 도출된다.
+
+그리고 반드시 EXPLAIN으로 검증하자. 이론적으로 맞는 인덱스도 데이터 분포에 따라 옵티마이저가 무시할 수 있다.
+
+이론은 이론일 뿐, "참고"하라고 있는 것이지<br />
+결국은 실전이다!
+
+---
+
+> Reference
+>
+> - Real MySQL 8.0 (1권) - [교보문고](https://product.kyobobook.co.kr/detail/S000001766482)
+> - MySQL 8.0 Reference Manual — [The Physical Structure of an InnoDB Index](https://dev.mysql.com/doc/refman/8.0/en/innodb-physical-structure.html)
+> - MySQL 8.0 Reference Manual — [Clustered and Secondary Indexes](https://dev.mysql.com/doc/refman/8.0/en/innodb-index-types.html)
+> - MySQL 8.0 Reference Manual — [Multiple-Column Indexes](https://dev.mysql.com/doc/refman/8.0/en/multiple-column-indexes.html)
+> - MySQL 8.0 Reference Manual — [EXPLAIN Output Format](https://dev.mysql.com/doc/refman/8.0/en/explain-output.html)
+> - Jeremy Cole blog - [InnoDB](https://blog.jcole.us/innodb/)
+> - Use The Index, Luke — [Anatomy of an Index](https://use-the-index-luke.com/sql/anatomy)
