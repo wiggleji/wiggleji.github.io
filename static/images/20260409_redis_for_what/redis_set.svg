@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 700 300" xmlns="http://www.w3.org/2000/svg" font-family="Fira Code, monospace">
+  <rect width="700" height="300" fill="#fefefe"/>
+
+  <!-- Title -->
+  <text x="350" y="24" text-anchor="middle" fill="#333" font-size="13" font-weight="700">Set — 중복 없는 집합</text>
+  <text x="350" y="40" text-anchor="middle" fill="#aaa" font-size="9">SADD/SISMEMBER O(1) | SINTER/SUNION/SDIFF 집합 연산</text>
+
+  <!-- Set A -->
+  <ellipse cx="220" cy="135" rx="140" ry="80" fill="#2980b9" opacity="0.08" stroke="#2980b9" stroke-width="1.5"/>
+  <text x="150" y="82" fill="#2980b9" font-size="10" font-weight="700">interest:user:A</text>
+
+  <text x="150" y="120" text-anchor="middle" fill="#333" font-size="10">kafka</text>
+  <text x="140" y="160" text-anchor="middle" fill="#333" font-size="10">spring</text>
+
+  <!-- Set B -->
+  <ellipse cx="400" cy="135" rx="140" ry="80" fill="#c0392b" opacity="0.08" stroke="#c0392b" stroke-width="1.5"/>
+  <text x="470" y="82" fill="#c0392b" font-size="10" font-weight="700">interest:user:B</text>
+
+  <text x="460" y="120" text-anchor="middle" fill="#333" font-size="10">java</text>
+  <text x="470" y="160" text-anchor="middle" fill="#333" font-size="10">docker</text>
+
+  <!-- Intersection -->
+  <text x="310" y="120" text-anchor="middle" fill="#8e44ad" font-size="10" font-weight="700">redis</text>
+  <text x="310" y="145" text-anchor="middle" fill="#8e44ad" font-size="10" font-weight="700">kotlin</text>
+
+  <!-- Labels -->
+  <text x="310" y="180" text-anchor="middle" fill="#8e44ad" font-size="8">SINTER = 교집합</text>
+
+  <!-- Operations -->
+  <line x1="60" y1="224" x2="640" y2="224" stroke="#eee" stroke-width="1"/>
+
+  <rect x="50" y="236" width="180" height="28" rx="5" fill="#8e44ad" opacity="0.1" stroke="#8e44ad" stroke-width="0.8"/>
+  <text x="140" y="254" text-anchor="middle" fill="#8e44ad" font-size="9" font-weight="600">SINTER → 공통 관심사</text>
+
+  <rect x="260" y="236" width="180" height="28" rx="5" fill="#2980b9" opacity="0.1" stroke="#2980b9" stroke-width="0.8"/>
+  <text x="350" y="254" text-anchor="middle" fill="#2980b9" font-size="9" font-weight="600">SDIFF → A만의 관심사</text>
+
+  <rect x="470" y="236" width="180" height="28" rx="5" fill="#2e7d32" opacity="0.1" stroke="#2e7d32" stroke-width="0.8"/>
+  <text x="560" y="254" text-anchor="middle" fill="#2e7d32" font-size="9" font-weight="600">SCARD → 원소 수 O(1)</text>
+
+  <!-- Key insight -->
+  <text x="350" y="290" text-anchor="middle" fill="#e67e22" font-size="10" font-weight="700">RDB 비유: SELECT DISTINCT + UNIQUE 제약 — 좋아요, 태그, 고유 방문자(UV)</text>
+</svg>

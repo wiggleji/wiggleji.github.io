@@ -15,7 +15,7 @@
   "type": "commonjs",
   "dependencies": {
     "@giscus/react": "^3.1.0",
-    "@mdx-js/react": "^3.1.1",
+    "@mdx-js/react": "^2.0.0",
     "ajv": "^8.18.0",
     "gatsby": "^5.16.1",
     "gatsby-plugin-google-gtag": "^5.16.0",
@@ -28,12 +28,12 @@
     "gatsby-remark-prismjs": "^7.16.0",
     "gatsby-source-filesystem": "^5.16.0",
     "gatsby-transformer-sharp": "^5.16.0",
-    "i18next": "^25.10.9",
+    "i18next": "^22.0.6",
     "mermaid": "^11.13.0",
     "prismjs": "^1.30.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-i18next": "^16.6.6",
+    "react-i18next": "^12.0.0",
     "remark-gfm": "^3.0.1"
   },
   "devDependencies": {

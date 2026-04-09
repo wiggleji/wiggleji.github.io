@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 700 260" xmlns="http://www.w3.org/2000/svg" font-family="Fira Code, monospace">
+  <rect width="700" height="260" fill="#fefefe"/>
+
+  <!-- Title -->
+  <text x="350" y="24" text-anchor="middle" fill="#333" font-size="13" font-weight="700">List — 양방향 큐</text>
+  <text x="350" y="40" text-anchor="middle" fill="#aaa" font-size="9">LPUSH/RPOP O(1) | BRPOP 블로킹 대기 | 내부: quicklist (ziplist 노드 연결)</text>
+
+  <!-- LPUSH arrow -->
+  <text x="70" y="100" text-anchor="middle" fill="#2980b9" font-size="10" font-weight="700">LPUSH</text>
+  <line x1="110" y1="96" x2="150" y2="96" stroke="#2980b9" stroke-width="1.5" marker-end="url(#arrB)"/>
+
+  <!-- List elements -->
+  <g transform="translate(156, 78)">
+    <rect x="0" y="0" width="70" height="36" rx="5" fill="#2980b9" opacity="0.15" stroke="#2980b9" stroke-width="1.2"/>
+    <text x="35" y="14" text-anchor="middle" fill="#2980b9" font-size="9" font-weight="700">NEW</text>
+    <text x="35" y="28" text-anchor="middle" fill="#999" font-size="7">job:email</text>
+
+    <rect x="80" y="0" width="70" height="36" rx="5" fill="#fff" stroke="#ccc" stroke-width="0.8"/>
+    <text x="115" y="14" text-anchor="middle" fill="#333" font-size="9">job #3</text>
+    <text x="115" y="28" text-anchor="middle" fill="#999" font-size="7">리포트</text>
+
+    <rect x="160" y="0" width="70" height="36" rx="5" fill="#fff" stroke="#ccc" stroke-width="0.8"/>
+    <text x="195" y="14" text-anchor="middle" fill="#333" font-size="9">job #2</text>
+    <text x="195" y="28" text-anchor="middle" fill="#999" font-size="7">알림</text>
+
+    <rect x="240" y="0" width="70" height="36" rx="5" fill="#fff" stroke="#ccc" stroke-width="0.8"/>
+    <text x="275" y="14" text-anchor="middle" fill="#333" font-size="9">job #1</text>
+    <text x="275" y="28" text-anchor="middle" fill="#999" font-size="7">환영메일</text>
+
+    <rect x="320" y="0" width="70" height="36" rx="5" fill="#c0392b" opacity="0.12" stroke="#c0392b" stroke-width="1.2"/>
+    <text x="355" y="14" text-anchor="middle" fill="#c0392b" font-size="9" font-weight="700">OLDEST</text>
+    <text x="355" y="28" text-anchor="middle" fill="#999" font-size="7">가입확인</text>
+  </g>
+
+  <!-- RPOP/BRPOP arrow -->
+  <line x1="550" y1="96" x2="590" y2="96" stroke="#c0392b" stroke-width="1.5" marker-end="url(#arrR)"/>
+  <text x="640" y="100" text-anchor="middle" fill="#c0392b" font-size="10" font-weight="700">BRPOP</text>
+
+  <!-- Labels -->
+  <text x="190" y="132" fill="#2980b9" font-size="8">head (새 데이터)</text>
+  <text x="475" y="132" fill="#c0392b" font-size="8">tail (오래된 데이터)</text>
+
+  <!-- FIFO -->
+  <line x1="190" y1="140" x2="510" y2="140" stroke="#e67e22" stroke-width="1" stroke-dasharray="4"/>
+  <text x="350" y="156" text-anchor="middle" fill="#e67e22" font-size="10" font-weight="700">FIFO: 먼저 들어온 것이 먼저 나감</text>
+
+  <!-- Use cases -->
+  <line x1="60" y1="174" x2="640" y2="174" stroke="#eee" stroke-width="1"/>
+  <rect x="100" y="186" width="140" height="28" rx="5" fill="#2980b9" opacity="0.1" stroke="#2980b9" stroke-width="0.8"/>
+  <text x="170" y="204" text-anchor="middle" fill="#2980b9" font-size="9" font-weight="600">Message Queue</text>
+
+  <rect x="280" y="186" width="140" height="28" rx="5" fill="#2e7d32" opacity="0.1" stroke="#2e7d32" stroke-width="0.8"/>
+  <text x="350" y="204" text-anchor="middle" fill="#2e7d32" font-size="9" font-weight="600">최근 활동 피드</text>
+
+  <rect x="460" y="186" width="140" height="28" rx="5" fill="#8e44ad" opacity="0.1" stroke="#8e44ad" stroke-width="0.8"/>
+  <text x="530" y="204" text-anchor="middle" fill="#8e44ad" font-size="9" font-weight="600">로그 버퍼</text>
+
+  <!-- Key insight -->
+  <text x="350" y="246" text-anchor="middle" fill="#e67e22" font-size="10" font-weight="700">BRPOP: 데이터 없으면 대기 — polling 없는 이벤트 기반 처리</text>
+
+  <defs>
+    <marker id="arrB" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto"><path d="M0,0 L7,2.5 L0,5" fill="#2980b9"/></marker>
+    <marker id="arrR" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto"><path d="M0,0 L7,2.5 L0,5" fill="#c0392b"/></marker>
+  </defs>
+</svg>

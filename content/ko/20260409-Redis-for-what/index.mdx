@@ -1,0 +1,566 @@
+---
+title: "무엇을 위한 Redis"
+date: 2026-04-09
+slug: "20260409_redis_for_what"
+category: "개발"
+tags: ["redis", "data-structure", "cache", "ranking", "queue", "pub-sub"]
+description: "Redis 5대 자료구조의 내부 동작과 실전 활용 — 캐시부터 랭킹, 대기열, 세션, 실시간 메시징까지"
+---
+
+# 무엇을 설명하는가
+
+Redis의 핵심 자료구조 5가지 — **String, Hash, List, Set, Sorted Set** — 각각이 실무에서 **어떤 문제를 해결하는 도구로 쓰이는지**를 다룬다.
+
+- Redis가 빠른 이유 — Single Thread + In-Memory의 설계 철학
+- 5대 자료구조의 핵심 특성과 시간 복잡도
+- **실제 프로젝트 코드 기반** — Cache, Queue, Ranking 통합 테스트로 검증
+
+# 왜 작성하는가
+
+Redis를 처음 접하면 대부분 이렇게 시작한다.
+
+```
+"캐싱해야돼? 그럼 Redis 써."
+"랭킹 구현? Redis가 답이다."
+```
+
+틀린 말은 아니다. 실제로 많은 서비스에서 Redis를 **DB 앞단의 캐시 레이어**로 사용한다. 그런데 이 인식에 머물러 있으면, Redis가 제공하는 나머지 기능을 놓치게 된다.
+
+최근 진행한 프로젝트에서 Redis를 **캐시**, **대기열**, **실시간 랭킹** 세 가지 용도로 적용하면서, "자료구조를 고르는 것이 곧 아키텍처 결정"이라는 감각을 얻었다. 같은 Redis인데 String을 쓰느냐 Sorted Set을 쓰느냐에 따라 시스템의 모양이 완전히 달라졌다.
+
+이 글은 Redis의 자료구조를 **RDB의 개념과 대비**하면서, 각 자료구조가 **어떤 실무 문제에 적합한 도구인지**를 정리하고, 실제 테스트 코드로 동작을 검증한다.
+
+---
+
+# 서론
+
+## Redis는 왜 빠른가
+
+### Single Thread + Event Loop
+
+Redis는 **싱글 스레드**로 명령을 처리한다. MySQL처럼 여러 스레드가 동시에 쿼리를 실행하는 구조가 아니다.
+
+```
+MySQL:    Thread-1 → Query A
+          Thread-2 → Query B    (동시 실행, Lock 경합 발생 가능)
+          Thread-3 → Query C
+
+Redis:    Event Loop → Command A → Command B → Command C (순차 실행, Lock 없음)
+```
+
+싱글 스레드라서 느릴 것 같지만, **Lock 경합이 없고**, 컨텍스트 스위칭 오버헤드가 0이다. 대신 하나의 명령이 오래 걸리면 뒤의 모든 명령이 밀린다 — 이게 `KEYS *` 같은 O(N) 명령을 운영 환경에서 금지하는 이유다.
+
+### In-Memory
+
+모든 데이터가 메모리에 있다. 디스크 I/O가 없다.
+
+```
+MySQL SELECT:  네트워크 → 쿼리 파싱 → 실행 계획 → 디스크 I/O → 결과 반환
+Redis GET:     네트워크 → 해시 테이블 조회 → 결과 반환
+```
+
+디스크 I/O 한 번이 ~1ms라면, 메모리 접근은 \~100ns다. **약 10,000배** 차이.
+단일 인스턴스에서 **초당 10\~30만 명령**을 처리할 수 있고, 읽기 지연 시간은 보통 **sub-millisecond** (1ms 미만)이다.
+
+다만, 모든 데이터가 메모리에 있으니 **용량 = RAM 크기**다. TB 단위의 데이터를 저장하는 용도가 아니라, **"자주 접근하는 핫 데이터를 빠르게 읽고 쓰는"** 용도에 적합하다.
+
+### Redis의 특성 — 빠름 외에 알아야 할 것들
+
+**Volatile (휘발성)**
+
+Redis는 기본적으로 **메모리에만 데이터를 저장**한다. 프로세스가 죽으면 데이터가 사라진다.
+
+영속화 옵션(RDB 스냅샷, AOF 로그)이 있지만, 이는 "복구를 위한 백업"이지 "데이터의 원본"이 아니다. 따라서 Redis에 저장하는 데이터는 항상 **"사라져도 원본에서 복구할 수 있는 데이터"** 여야 한다.
+
+```
+✅ 캐시 — 원본은 DB에 있음. 사라지면 DB에서 다시 로드
+✅ 세션 — 사라지면 재로그인. 불편하지만 데이터 유실은 아님
+✅ 랭킹 — 이벤트 로그에서 재집계 가능
+❌ 주문 데이터 — 사라지면 복구 불가. Redis에 저장하면 안 됨
+```
+
+**Atomic 연산**
+
+싱글 스레드이기 때문에 개별 명령은 **자동으로 atomic**하다. `INCR`, `ZINCRBY`, `SETNX` 같은 명령은 별도 락 없이 동시성이 보장된다.
+
+여러 명령을 묶어야 할 때는 `MULTI/EXEC`(트랜잭션) 또는 Lua 스크립트를 사용한다.
+
+**TTL (Time-To-Live)**
+
+모든 키에 만료 시간을 설정할 수 있다. 메모리는 유한하므로, **TTL 없는 키는 메모리 누수**와 같다.
+
+```
+SET session:abc123 "data" EX 1800    ← 30분 후 자동 삭제
+EXPIRE ranking:all:20260409 172800   ← 2일 후 자동 삭제
+```
+
+**Pub/Sub**
+
+Redis는 메시지 브로커 역할도 가능하다. `PUBLISH`/`SUBSCRIBE`로 실시간 알림, 채팅, 이벤트 전파를 구현할 수 있다. 다만 메시지가 디스크에 저장되지 않으므로, 구독자가 없으면 메시지는 **그냥 사라진다** — Kafka와 대비되는 지점이다.
+
+---
+
+# 본론
+
+## 01. String — Key:Value 1:1 매핑
+
+<img src="/images/20260409_redis_for_what/redis_string.svg" width="640" />
+
+가장 기본적인 자료구조다. `SET`/`GET` O(1), `INCR` atomic 카운터, `SETNX` 분산 락까지 — 단순하지만 커버 범위가 넓다.
+
+| 명령                   | 설명                    | 시간 복잡도 |
+| ---------------------- | ----------------------- | ----------- |
+| `SET key value [EX s]` | 값 저장 (TTL 옵션)      | O(1)        |
+| `GET key`              | 값 조회                 | O(1)        |
+| `INCR key`             | 정수 1 증가 (atomic)    | O(1)        |
+| `SETNX key value`      | 존재하지 않을 때만 저장 | O(1)        |
+| `MGET key1 key2 ...`   | 여러 키 한 번에 조회    | O(N)        |
+
+---
+
+## 02. Hash — 필드 단위 접근
+
+<img src="/images/20260409_redis_for_what/redis_hash.svg" width="640" />
+
+하나의 키 아래에 field-value 쌍을 저장한다. JSON을 통째로 String에 넣는 것보다 **필요한 필드만 O(1)로 접근**할 수 있어 효율적이다.
+
+| 명령                   | 설명           | 시간 복잡도 |
+| ---------------------- | -------------- | ----------- |
+| `HSET key field value` | 필드 저장      | O(1)        |
+| `HGET key field`       | 단일 필드 조회 | O(1)        |
+| `HGETALL key`          | 전체 필드 조회 | O(N)        |
+| `HINCRBY key field n`  | 정수 필드 증가 | O(1)        |
+
+---
+
+## 03. List — 양방향 큐
+
+<img src="/images/20260409_redis_for_what/redis_list.svg" width="640" />
+
+양쪽 끝에서의 삽입/추출이 O(1). `BRPOP`은 데이터가 없으면 블로킹 대기한다 — polling 없는 이벤트 기반 처리가 가능하다.
+
+| 명령                    | 설명               | 시간 복잡도 |
+| ----------------------- | ------------------ | ----------- |
+| `LPUSH key value`       | 왼쪽에 삽입        | O(1)        |
+| `RPOP key`              | 오른쪽에서 추출    | O(1)        |
+| `BRPOP key timeout`     | 블로킹 추출 (대기) | O(1)        |
+| `LRANGE key start stop` | 범위 조회          | O(S+N)      |
+| `LTRIM key start stop`  | 범위 외 삭제       | O(N)        |
+
+---
+
+## 04. Set — 중복 없는 집합
+
+<img src="/images/20260409_redis_for_what/redis_set.svg" width="640" />
+
+중복 불허 + O(1) 멤버십 + 집합 연산(`SINTER`, `SUNION`, `SDIFF`). 좋아요, 태그, 고유 방문자 추적에 적합하다.
+
+| 명령                   | 설명                  | 시간 복잡도 |
+| ---------------------- | --------------------- | ----------- |
+| `SADD key member`      | 원소 추가 (중복 무시) | O(1)        |
+| `SISMEMBER key member` | 존재 여부             | O(1)        |
+| `SINTER key1 key2`     | 교집합                | O(N\*M)     |
+| `SCARD key`            | 원소 수               | O(1)        |
+
+---
+
+## 05. Sorted Set (ZSET) — 점수 기반 정렬
+
+<img src="/images/20260409_redis_for_what/redis_sorted_set.svg" width="640" />
+
+Set + score. 내부적으로 **Skip List + Hash Table**을 동시에 사용해서, 삽입도 조회도 O(logN). 삽입 시점에 정렬이 완료되므로 읽기가 항상 빠르다.
+
+단, 원소가 적을 때(`zset-max-listpack-entries ≤ 128` & `zset-max-listpack-value ≤ 64B`)는 **listpack**이라는 연속 메모리 블록을 사용한다. member와 score가 교차로 나란히 배치되어, 포인터 점프 없이 순차 스캔만으로 탐색한다. O(N)이지만 CPU L1 캐시 히트율이 높아 소규모에서는 skiplist보다 오히려 빠르다. 원소 수가 임계치를 넘으면 자동으로 skiplist + hashtable로 전환된다.
+
+<img
+  src="/images/20260409_redis_for_what/redis_zset_listpack.svg"
+  width="640"
+/>
+
+| 명령                       | 설명                     | 시간 복잡도 |
+| -------------------------- | ------------------------ | ----------- |
+| `ZADD key score member`    | 원소 추가/score 갱신     | O(logN)     |
+| `ZINCRBY key delta member` | score 증가 (atomic)      | O(logN)     |
+| `ZREVRANGE key start stop` | score 내림차순 범위 조회 | O(logN + M) |
+| `ZREVRANK key member`      | 내림차순 순위            | O(logN)     |
+| `ZRANK key member`         | 오름차순 순위            | O(logN)     |
+| `ZRANGE key start stop`    | score 오름차순 범위 조회 | O(logN + M) |
+
+---
+
+## 한눈에 보는 자료구조 비교
+
+| 자료구조       | RDB 비유          | 핵심 특성                   | 대표 사용 사례             |
+| -------------- | ----------------- | --------------------------- | -------------------------- |
+| **String**     | 단일 컬럼 값      | O(1) 읽기/쓰기, atomic INCR | 캐시, 카운터, 분산 락      |
+| **Hash**       | 한 행(row)        | 필드 단위 O(1) 접근         | 세션, 프로필, 설정         |
+| **List**       | ORDER BY + LIMIT  | 양단 O(1) 삽입/추출         | 메시지 큐, 최근 피드       |
+| **Set**        | DISTINCT + UNIQUE | O(1) 멤버십, 집합 연산      | 좋아요, 태그, UV 추적      |
+| **Sorted Set** | 인덱스 + ORDER BY | O(logN) 정렬 삽입/범위 조회 | 랭킹, 대기열, Rate Limiter |
+
+---
+
+## 06. 실전 — Cache (String)
+
+상품 상세를 DB에서 매번 조회하면 JOIN + 인덱스 탐색이 반복된다. Redis String에 JSON을 캐시하면 **첫 호출만 DB를 타고**, 이후는 메모리에서 바로 반환한다.
+
+### 코드
+
+```kotlin
+// CacheOperator.kt — Redis String 기반 범용 캐시 추상화
+
+@Component
+class CacheOperator(
+    private val redisTemplate: RedisTemplate<String, String>,       // replica (읽기)
+    @Qualifier("redisTemplateMaster")
+    private val masterRedisTemplate: RedisTemplate<String, String>, // master (쓰기)
+    private val objectMapper: ObjectMapper,
+) {
+    // 읽기: GET → JSON 역직렬화
+    fun <T> get(key: String, typeRef: TypeReference<T>, policy: CachePolicy): T? {
+        return try {
+            val json = redisTemplate.opsForValue().get(key) ?: return null
+            objectMapper.readValue(json, typeRef)
+        } catch (e: Exception) {
+            when (policy) {
+                CachePolicy.FALLBACK -> { log.warn("Cache miss fallback"); null }
+                CachePolicy.FAIL_FAST -> throw CacheException("Redis read failed", e)
+            }
+        }
+    }
+
+    // 쓰기: SET EX (best-effort — 실패해도 서비스 중단 없음)
+    fun put(key: String, value: Any, ttl: Duration) {
+        try {
+            masterRedisTemplate.opsForValue().set(key, objectMapper.writeValueAsString(value), ttl)
+        } catch (e: Exception) {
+            log.error("Cache put failed - key={}", key)
+        }
+    }
+
+    // 분산 락: SETNX — Cache Stampede 방지
+    fun tryLock(key: String, ttl: Duration): Boolean =
+        try { masterRedisTemplate.opsForValue().setIfAbsent(key, "1", ttl) ?: false }
+        catch (e: Exception) { false }
+}
+```
+
+핵심은 **읽기는 Replica**, **쓰기는 Master**로 분리한 것. 읽기 트래픽이 Master에 몰리지 않는다.
+
+`CachePolicy`로 장애 대응을 구분한다:
+
+- **FALLBACK** — Redis 장애 시 `null` → DB fallback (상품 상세처럼 핵심 기능)
+- **FAIL_FAST** — Redis 장애 시 즉시 예외 (추천 목록처럼 부가 기능)
+
+### 정합성 테스트
+
+```kotlin
+// ProductCacheServiceTest.kt — @SpringBootTest + TestContainers
+
+// Cache Hit/Miss 정합성
+productCacheService.putProductDetail(1L, result)
+assertThat(productCacheService.getProductDetail(1L)).isEqualTo(result)  // ✅ hit
+assertThat(productCacheService.getProductDetail(999L)).isNull()         // ✅ miss
+
+// Eviction
+productCacheService.evictProductDetail(1L)
+assertThat(productCacheService.getProductDetail(1L)).isNull()           // ✅ 삭제됨
+
+// 키 격리: 다른 검색 조건 → 다른 캐시 키
+productCacheService.putProductList(condition1, results1)
+productCacheService.putProductList(condition2, results2)
+assertThat(productCacheService.getProductList(condition1)).isEqualTo(results1)  // 교차 오염 없음
+
+// Stampede Lock: 10 스레드 동시 tryLock → 정확히 1개만 성공
+val lockAcquiredCount = AtomicInteger(0)
+repeat(10) { executor.submit { if (tryLock(1L)) lockAcquiredCount.incrementAndGet() } }
+latch.await()
+assertThat(lockAcquiredCount.get()).isEqualTo(1)  // ✅ SETNX 보장
+```
+
+### k6 부하 테스트 — Cache Miss vs Hit
+
+```javascript
+// k6/redis-usecase-benchmark.js
+
+// Phase 1a: Cache Warm-up (1 VU × 50 iters — 최초 호출, DB 경유)
+export function cacheWarmup() {
+  const productId = 1 + Math.floor(Math.random() * PRODUCT_ID_MAX);
+  const res = http.get(`${BASE_URL}/api/v1/products/${productId}`);
+  if (res.status === 200) cacheMissLatency.add(res.timings.duration);
+}
+
+// Phase 1b: Cache Hit (50 VUs, 15s — 캐시된 상품 반복 조회)
+export function cacheHitTest() {
+  const productId = 1 + Math.floor(Math.random() * 50);
+  const res = http.get(`${BASE_URL}/api/v1/products/${productId}`);
+  if (res.status === 200) cacheHitLatency.add(res.timings.duration);
+}
+```
+
+**결과 (3회 평균):**
+
+| 지표 | Cache Miss (cold) | Cache Hit (warm) | 개선          |
+| ---- | ----------------- | ---------------- | ------------- |
+| avg  | 14.3ms            | 8.5ms            | **1.7× 빠름** |
+| p95  | 18.5ms            | 15.6ms           | **16% 감소**  |
+
+Cache Miss는 `DB JOIN → serialize → Redis SET`까지 포함하고, Cache Hit은 `Redis GET → deserialize`만 수행한다. TTL 5분 동안 동일 상품은 DB를 전혀 타지 않는다.
+
+---
+
+## 07. 실전 — Queue (Sorted Set)
+
+콘서트 티켓팅, 한정판 세일처럼 동시 접속이 폭증하는 상황에서 **모든 요청을 서버로 보내면 DB가 죽는다**. 대기열로 줄을 세우면 초당 처리량을 제어하면서 유저에게 "내 순번"을 보여줄 수 있다.
+
+List(`LPUSH`/`BRPOP`)로도 큐를 만들 수 있지만, **"내 앞에 몇 명?"**(`ZRANK`) 조회가 O(logN)으로 가능한 Sorted Set이 대기열에 더 적합하다.
+
+### 코드
+
+```kotlin
+// RedisQueueService.kt — Sorted Set 기반 대기열
+
+class RedisQueueService(
+    private val redisTemplate: RedisTemplate<String, String>,
+    private val masterRedisTemplate: RedisTemplate<String, String>,
+) : QueueService {
+
+    // 대기열 진입: ZADD score=timestamp → FIFO 순서 보장
+    override fun enter(userId: Long): QueueEntry {
+        val added = masterRedisTemplate.opsForZSet()
+            .addIfAbsent(WAITING_QUEUE_KEY, userId.toString(), System.nanoTime().toDouble())
+        // addIfAbsent = ZADD NX → 이미 있으면 무시 (중복 진입 차단)
+
+        val rank = redisTemplate.opsForZSet().rank(WAITING_QUEUE_KEY, userId.toString())
+        val totalWaiting = redisTemplate.opsForZSet().zCard(WAITING_QUEUE_KEY) ?: 0L
+        return QueueEntry(status = WAITING, rank = rank, totalWaiting = totalWaiting, ...)
+    }
+
+    // 순번 조회: ZRANK O(logN) — "내 앞에 몇 명?"
+    override fun getPosition(userId: Long): QueueEntry {
+        val existingToken = redisTemplate.opsForValue().get(tokenKey(userId))
+        if (existingToken != null) return QueueEntry(status = ACTIVE, token = existingToken, ...)
+
+        val rank = redisTemplate.opsForZSet().rank(WAITING_QUEUE_KEY, userId.toString())
+            ?: return QueueEntry(status = NOT_IN_QUEUE)
+        val totalWaiting = redisTemplate.opsForZSet().zCard(WAITING_QUEUE_KEY) ?: 0L
+        return QueueEntry(status = WAITING, rank = rank, totalWaiting = totalWaiting,
+            estimatedWaitSeconds = rank / THROUGHPUT_PER_SECOND)
+    }
+
+    // 배치 Pop: 스케줄러가 주기적으로 호출 — ZRANGE 0 count-1 → ZREM
+    override fun popNextBatch(count: Long): List<Long> {
+        val members = masterRedisTemplate.opsForZSet()
+            .rangeWithScores(WAITING_QUEUE_KEY, 0, count - 1)
+        members?.forEach { masterRedisTemplate.opsForZSet().remove(WAITING_QUEUE_KEY, it.value) }
+        return members?.mapNotNull { it.value?.toLong() } ?: emptyList()
+    }
+
+    // 입장 토큰: String SET EX 300 (5분 TTL)
+    override fun issueToken(userId: Long): String {
+        val token = UUID.randomUUID().toString()
+        masterRedisTemplate.opsForValue().set(tokenKey(userId), token, TOKEN_TTL)
+        return token
+    }
+}
+```
+
+**왜 List가 아니라 Sorted Set인가?**
+
+| 기능           | List            | Sorted Set          |
+| -------------- | --------------- | ------------------- |
+| FIFO 순서      | O(1) LPUSH/RPOP | O(logN) ZADD/ZRANGE |
+| "내 순번" 조회 | O(N) 순회 필요  | **O(logN) ZRANK**   |
+| 중복 진입 방지 | 별도 Set 필요   | **ZADD NX 내장**    |
+| 배치 Pop       | N번 RPOP        | **ZRANGE + ZREM**   |
+
+대기열에서 유저가 가장 많이 호출하는 API는 "내 순번 확인"이다. 수만 명이 대기 중일 때 List의 O(N) 순회는 Redis를 멈추게 할 수 있지만, ZRANK는 O(logN)으로 끝난다.
+
+### 정합성 테스트
+
+```kotlin
+// RedisQueueServiceTest.kt — @SpringBootTest + TestContainers
+
+// FIFO 순서 보장
+val entry1 = redisQueueService.enter(1L)
+val entry2 = redisQueueService.enter(2L)
+assertThat(entry1.rank).isEqualTo(0L)  // 먼저 들어온 1번이 0번째
+assertThat(entry2.rank).isEqualTo(1L)
+
+// 중복 진입 방지 (ZADD NX)
+redisQueueService.enter(1L)
+val dup = redisQueueService.enter(1L)
+assertThat(dup.totalWaiting).isEqualTo(1L)  // ✅ 2가 아님
+
+// 100명 동시 진입 → 유니크 rank 보장
+repeat(100) { i -> executor.submit { redisQueueService.enter((i + 1).toLong()) } }
+latch.await()
+val ranks = (1L..100L).map { redisQueueService.getPosition(it).rank }
+assertThat(ranks.toSet()).hasSize(100)  // ✅ 모두 유니크
+
+// Full Flow: enter → pop → issueToken → validate → consume
+val enterResult = redisQueueService.enter(1L)
+assertThat(enterResult.status).isEqualTo(WAITING)
+
+redisQueueService.popNextBatch(1)
+val token = redisQueueService.issueToken(1L)
+assertThat(redisQueueService.getPosition(1L).status).isEqualTo(ACTIVE)
+
+assertThat(redisQueueService.validateToken(1L, token)).isTrue()
+assertThat(redisQueueService.validateToken(1L, "fake")).isFalse()  // 위조 거부
+redisQueueService.consumeToken(1L)
+assertThat(redisQueueService.getPosition(1L).status).isEqualTo(NOT_IN_QUEUE)  // ✅ 소비 완료
+```
+
+---
+
+## 08. 실전 — Ranking (Sorted Set)
+
+커머스에서 "인기 상품 순위"는 조회/좋아요/주문 등 여러 이벤트의 **가중 점수를 실시간으로 누적**해야 한다. RDB의 `ORDER BY score DESC`는 매 쿼리마다 정렬이 필요하지만, Sorted Set은 **삽입 시점에 정렬이 완료**되어 읽기가 항상 O(logN+M)이다.
+
+### 코드
+
+```kotlin
+// RedisRankingRepository.kt — Sorted Set 기반 실시간 랭킹
+
+class RedisRankingRepository(
+    private val masterRedisTemplate: RedisTemplate<String, String>,
+    private val redisTemplate: RedisTemplate<String, String>,
+) : RankingRepository {
+
+    // 단건 점수 누적: ZINCRBY — atomic, 음수도 가능
+    override fun increment(key: String, productId: Long, delta: Double) {
+        masterRedisTemplate.opsForZSet().incrementScore(key, productId.toString(), delta)
+    }
+
+    // 배치 점수 누적: Pipeline으로 M개 ZINCRBY를 1 round-trip에 처리
+    override fun batchIncrement(key: String, deltas: Map<Long, Double>) {
+        if (deltas.isEmpty()) return
+        masterRedisTemplate.executePipelined { connection ->
+            val rawKey = key.toByteArray()
+            deltas.forEach { (productId, delta) ->
+                connection.zSetCommands().zIncrBy(rawKey, delta, productId.toString().toByteArray())
+            }
+            null
+        }
+    }
+
+    // Top-N 조회: ZREVRANGE — score 내림차순, offset으로 페이징
+    override fun findTopN(key: String, offset: Long, limit: Long): List<RankingEntry> {
+        val results = redisTemplate.opsForZSet()
+            .reverseRangeWithScores(key, offset, offset + limit - 1) ?: return emptyList()
+        return results.mapIndexed { idx, tuple ->
+            RankingEntry(productId = tuple.value!!.toLong(), score = tuple.score!!, rank = offset + idx)
+        }
+    }
+
+    // 특정 상품 순위: ZREVRANK O(logN)
+    override fun findRank(key: String, productId: Long): Long? =
+        redisTemplate.opsForZSet().reverseRank(key, productId.toString())
+}
+```
+
+**Pipeline의 효과**: Kafka Batch Listener가 480개 이벤트를 한 번에 소비하면, 같은 productId를 HashMap으로 합산(`merge`)한 후 `batchIncrement`로 ~100개 ZINCRBY를 **1 round-trip**에 처리한다. 단건 호출 대비 **네트워크 왕복 79% 감소**.
+
+### 정합성 테스트
+
+```kotlin
+// RedisRankingRepositoryTest.kt — @SpringBootTest + TestContainers
+
+// Score 누적: 같은 productId 여러 번 → 합산
+repository.increment(key, 1L, 5.0)
+repository.increment(key, 1L, 3.0)
+assertThat(repository.findTopN(key, 0, 10)[0].score).isEqualTo(8.0)  // ✅ 5 + 3
+
+// Phase A(단건) == Phase B(배치): 최종 결과 동일
+events.forEach { repository.increment(keyA, it.productId, it.score) }
+val merged = events.groupBy { it.productId }.mapValues { (_, v) -> v.sumOf { it.score } }
+repository.batchIncrement(keyB, merged)
+assertThat(repository.findTopN(keyA, 0, 100))
+    .isEqualTo(repository.findTopN(keyB, 0, 100))  // ✅ 순서 + 점수 완전 일치
+
+// 내림차순 정렬 보장
+repository.increment(key, 1L, 10.0)  // 3등
+repository.increment(key, 2L, 30.0)  // 1등
+repository.increment(key, 3L, 20.0)  // 2등
+assertThat(repository.findRank(key, 2L)).isEqualTo(0L)  // ✅ 30점 → rank 0
+assertThat(repository.findRank(key, 1L)).isEqualTo(2L)  // ✅ 10점 → rank 2
+```
+
+### 테스트 환경
+
+| 항목         | 스펙                                         |
+| ------------ | -------------------------------------------- |
+| Hardware     | Apple M5 Pro · 48 GB RAM                     |
+| JDK          | Eclipse Temurin 21.0.10 LTS                  |
+| Framework    | Spring Boot 3.4.4 · Kotlin 2.0.20            |
+| Redis        | 7.0.15 (Docker) — master:6379 + replica:6380 |
+| Redis Client | Lettuce 6.4.2                                |
+| DB           | MySQL 9.1.0 (Docker) · Connector/J 9.1.0     |
+| Load Test    | k6 v1.6.1                                    |
+
+### k6 부하 테스트 — Ranking + Cache 혼합
+
+```javascript
+// k6/redis-usecase-benchmark.js
+
+// Phase 2: Ranking 조회 (0→100→0 VUs)
+export function rankingReadTest() {
+  const page = 1 + Math.floor(Math.random() * 5);
+  const res = http.get(`${BASE_URL}/api/v1/rankings?page=${page}&size=20`);
+  if (res.status === 200) rankingLatency.add(res.timings.duration);
+}
+
+// Phase 3: 실전 혼합 트래픽 (0→200→0 VUs)
+// 60% 상품 상세(캐시), 25% 랭킹(ZREVRANGE), 15% 상품 목록(리스트 캐시)
+export function mixedTrafficTest() {
+  const roll = Math.random();
+  if (roll < 0.6) http.get(`${BASE_URL}/api/v1/products/${randomProductId()}`);
+  else if (roll < 0.85)
+    http.get(`${BASE_URL}/api/v1/rankings?page=${randomPage()}&size=20`);
+  else http.get(`${BASE_URL}/api/v1/products?page=0&size=20`);
+}
+```
+
+**결과 (3회 평균, 1028 products, 1028 ZSET entries):**
+
+| 지표        | Cache (String) | Ranking (Sorted Set) | 혼합 트래픽                 |
+| ----------- | -------------- | -------------------- | --------------------------- |
+| avg latency | 8.5ms          | 4.1ms                | 7.1ms                       |
+| p95 latency | 15.6ms         | 11.0ms               | 14.2ms                      |
+| throughput  | —              | —                    | **1,647 rps**               |
+| 에러율      | 0%             | 0%                   | **1.44%** (product ID gaps) |
+
+```
+Cache Miss:   ████████████████████  19.4ms (DB JOIN + serialize + Redis SET)
+Cache Hit:    ██████████            8.5ms  (Redis GET + deserialize)
+Ranking:      ██████                4.1ms  (ZREVRANGE + DB findAllByIds)
+Mixed:        █████████             7.1ms  (60% cache + 25% ranking + 15% list)
+```
+
+- **Ranking이 Cache보다 빠른 이유**: 랭킹 API는 ZREVRANGE로 productId 목록을 가져온 뒤, `findAllByIds` IN 쿼리 1회로 끝난다. 상품 상세는 개별 상품의 brand JOIN + stock 조회가 포함되어 상대적으로 무겁다.
+- **혼합 200 VUs에서 1,647 rps**: 단일 JVM + Redis 1대로 달성. 모든 hot path가 메모리에서 처리되기 때문에 가능하다.
+
+---
+
+# 결론
+
+## "어떤 자료구조를 쓸까"가 곧 설계다
+
+Redis를 단순히 "빠른 캐시"로만 쓰는 것은, RDB를 `SELECT *`로만 쓰는 것과 같다. 도구의 10%만 활용하는 셈이다.
+
+> Redis는 "빠른 저장소"가 아니라, **"자료구조를 서비스로 제공하는 엔진"** 이다.
+
+자료구조 선택은 단순한 API 선택이 아니라 **시스템의 형태를 결정하는 아키텍처 결정**이다:
+
+| 문제             | 자료구조            | Redis 명령                     | 성능 (실측)                       | Tradeoff                                        |
+| ---------------- | ------------------- | ------------------------------ | --------------------------------- | ----------------------------------------------- |
+| DB 부하 감소     | **String**          | `SET EX` / `GET` / `SETNX`     | cache hit avg **8.5ms**           | TTL 내 stale data 가능 — 정합성 vs 속도         |
+| 순번 기반 대기열 | **Sorted Set**      | `ZADD NX` / `ZRANK` / `ZRANGE` | 100명 동시 진입, 유니크 rank 보장 | 메모리에만 존재 — 장애 시 대기열 유실 가능      |
+| 실시간 랭킹      | **Sorted Set**      | `ZINCRBY` / `ZREVRANGE`        | avg **4.1ms**, 1028 entries       | 원소 수 증가 시 O(logN) 누적 — 주기적 trim 필요 |
+| 혼합 트래픽      | String + Sorted Set | 위 조합                        | **1,647 rps** @ 200 VUs           | 단일 Redis 의존 — 장애 시 전체 hot path 영향    |
+
+세가지 문제 모두 Redis 로 해결 가능하지만, 자료구조 선택에 따라 **캐시는 String**, **대기열과 랭킹은 Sorted Set**으로 완전히 다른 시스템이 된다.
+
+각 문제에 적용했을 때, 특징/장점/트레이드오프는 항상 공존하기에 충분한 조사/검증을 통한 신중한 결정이라는 점<br />
+엔지니어로서 항상 명심하자

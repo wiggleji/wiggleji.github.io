@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 700 340" xmlns="http://www.w3.org/2000/svg" font-family="Fira Code, monospace">
+  <rect width="700" height="340" fill="#fefefe"/>
+
+  <!-- Title -->
+  <text x="350" y="24" text-anchor="middle" fill="#333" font-size="13" font-weight="700">Sorted Set (ZSET) — 점수 기반 정렬 집합</text>
+  <text x="350" y="40" text-anchor="middle" fill="#aaa" font-size="9">내부: Skip List + Hash Table | ZADD/ZINCRBY O(logN) | ZREVRANGE O(logN+M)</text>
+
+  <!-- Skip List visualization -->
+  <text x="60" y="66" fill="#999" font-size="9" font-weight="600">Skip List (score 순 정렬)</text>
+
+  <!-- Level 3 -->
+  <text x="60" y="90" fill="#aaa" font-size="8">L3</text>
+  <rect x="90" y="78" width="50" height="20" rx="4" fill="#eee" stroke="#ccc" stroke-width="0.8"/>
+  <text x="115" y="92" text-anchor="middle" fill="#999" font-size="8">head</text>
+  <line x1="144" y1="88" x2="530" y2="88" stroke="#ccc" stroke-width="1" stroke-dasharray="4"/>
+  <rect x="530" y="78" width="90" height="20" rx="4" fill="#c0392b" opacity="0.15" stroke="#c0392b" stroke-width="1"/>
+  <text x="575" y="92" text-anchor="middle" fill="#c0392b" font-size="8" font-weight="600">90.0 맥북</text>
+
+  <!-- Level 2 -->
+  <text x="60" y="118" fill="#aaa" font-size="8">L2</text>
+  <rect x="90" y="106" width="50" height="20" rx="4" fill="#eee" stroke="#ccc" stroke-width="0.8"/>
+  <text x="115" y="120" text-anchor="middle" fill="#999" font-size="8">head</text>
+  <line x1="144" y1="116" x2="310" y2="116" stroke="#ccc" stroke-width="1" stroke-dasharray="4"/>
+  <rect x="310" y="106" width="90" height="20" rx="4" fill="#8e44ad" opacity="0.15" stroke="#8e44ad" stroke-width="1"/>
+  <text x="355" y="120" text-anchor="middle" fill="#8e44ad" font-size="8" font-weight="600">50.0 에어팟</text>
+  <line x1="404" y1="116" x2="530" y2="116" stroke="#ccc" stroke-width="1" stroke-dasharray="4"/>
+  <rect x="530" y="106" width="90" height="20" rx="4" fill="#c0392b" opacity="0.15" stroke="#c0392b" stroke-width="1"/>
+  <text x="575" y="120" text-anchor="middle" fill="#c0392b" font-size="8" font-weight="600">90.0 맥북</text>
+
+  <!-- Level 1 -->
+  <text x="60" y="146" fill="#aaa" font-size="8">L1</text>
+  <rect x="90" y="134" width="50" height="20" rx="4" fill="#eee" stroke="#ccc" stroke-width="0.8"/>
+  <text x="115" y="148" text-anchor="middle" fill="#999" font-size="8">head</text>
+  <line x1="144" y1="144" x2="196" y2="144" stroke="#2e7d32" stroke-width="1"/>
+  <rect x="200" y="134" width="90" height="20" rx="4" fill="#2e7d32" opacity="0.15" stroke="#2e7d32" stroke-width="1"/>
+  <text x="245" y="148" text-anchor="middle" fill="#2e7d32" font-size="8" font-weight="600">10.0 키보드</text>
+  <line x1="294" y1="144" x2="310" y2="144" stroke="#2e7d32" stroke-width="1"/>
+  <rect x="310" y="134" width="90" height="20" rx="4" fill="#8e44ad" opacity="0.15" stroke="#8e44ad" stroke-width="1"/>
+  <text x="355" y="148" text-anchor="middle" fill="#8e44ad" font-size="8" font-weight="600">50.0 에어팟</text>
+  <line x1="404" y1="144" x2="420" y2="144" stroke="#2e7d32" stroke-width="1"/>
+  <rect x="420" y="134" width="90" height="20" rx="4" fill="#2980b9" opacity="0.15" stroke="#2980b9" stroke-width="1"/>
+  <text x="465" y="148" text-anchor="middle" fill="#2980b9" font-size="8" font-weight="600">70.0 아이패드</text>
+  <line x1="514" y1="144" x2="530" y2="144" stroke="#2e7d32" stroke-width="1"/>
+  <rect x="530" y="134" width="90" height="20" rx="4" fill="#c0392b" opacity="0.15" stroke="#c0392b" stroke-width="1"/>
+  <text x="575" y="148" text-anchor="middle" fill="#c0392b" font-size="8" font-weight="600">90.0 맥북</text>
+
+  <!-- Hash Table side -->
+  <line x1="60" y1="170" x2="640" y2="170" stroke="#eee" stroke-width="1"/>
+  <text x="60" y="190" fill="#999" font-size="9" font-weight="600">Hash Table (member → score O(1) 조회)</text>
+
+  <g transform="translate(60, 200)">
+    <rect x="0" y="0" width="130" height="24" rx="4" fill="#fff" stroke="#d4a017" stroke-width="0.8"/>
+    <text x="65" y="16" text-anchor="middle" fill="#333" font-size="8">맥북 → 90.0</text>
+    <rect x="145" y="0" width="130" height="24" rx="4" fill="#fff" stroke="#d4a017" stroke-width="0.8"/>
+    <text x="210" y="16" text-anchor="middle" fill="#333" font-size="8">아이패드 → 70.0</text>
+    <rect x="290" y="0" width="130" height="24" rx="4" fill="#fff" stroke="#d4a017" stroke-width="0.8"/>
+    <text x="355" y="16" text-anchor="middle" fill="#333" font-size="8">에어팟 → 50.0</text>
+    <rect x="435" y="0" width="130" height="24" rx="4" fill="#fff" stroke="#d4a017" stroke-width="0.8"/>
+    <text x="500" y="16" text-anchor="middle" fill="#333" font-size="8">키보드 → 10.0</text>
+  </g>
+
+  <!-- ZREVRANGE result -->
+  <line x1="60" y1="240" x2="640" y2="240" stroke="#eee" stroke-width="1"/>
+  <text x="60" y="258" fill="#c0392b" font-size="9" font-weight="600">ZREVRANGE key 0 2 → Top 3</text>
+
+  <rect x="240" y="248" width="80" height="28" rx="5" fill="#c0392b" opacity="0.12" stroke="#c0392b" stroke-width="1"/>
+  <text x="280" y="266" text-anchor="middle" fill="#c0392b" font-size="9" font-weight="700">#1 맥북</text>
+  <rect x="330" y="248" width="90" height="28" rx="5" fill="#2980b9" opacity="0.12" stroke="#2980b9" stroke-width="1"/>
+  <text x="375" y="266" text-anchor="middle" fill="#2980b9" font-size="9" font-weight="700">#2 아이패드</text>
+  <rect x="430" y="248" width="80" height="28" rx="5" fill="#8e44ad" opacity="0.12" stroke="#8e44ad" stroke-width="1"/>
+  <text x="470" y="266" text-anchor="middle" fill="#8e44ad" font-size="9" font-weight="700">#3 에어팟</text>
+
+  <!-- Use cases -->
+  <line x1="60" y1="290" x2="640" y2="290" stroke="#eee" stroke-width="1"/>
+  <rect x="80" y="300" width="140" height="24" rx="5" fill="#c0392b" opacity="0.1" stroke="#c0392b" stroke-width="0.8"/>
+  <text x="150" y="316" text-anchor="middle" fill="#c0392b" font-size="9" font-weight="600">실시간 랭킹</text>
+  <rect x="240" y="300" width="140" height="24" rx="5" fill="#2980b9" opacity="0.1" stroke="#2980b9" stroke-width="0.8"/>
+  <text x="310" y="316" text-anchor="middle" fill="#2980b9" font-size="9" font-weight="600">대기열 (순번)</text>
+  <rect x="400" y="300" width="140" height="24" rx="5" fill="#2e7d32" opacity="0.1" stroke="#2e7d32" stroke-width="0.8"/>
+  <text x="470" y="316" text-anchor="middle" fill="#2e7d32" font-size="9" font-weight="600">Rate Limiter</text>
+</svg>

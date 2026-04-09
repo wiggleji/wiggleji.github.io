@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 700 260" xmlns="http://www.w3.org/2000/svg" font-family="Fira Code, monospace">
+  <rect width="700" height="260" fill="#fefefe"/>
+
+  <!-- Title -->
+  <text x="350" y="24" text-anchor="middle" fill="#333" font-size="13" font-weight="700">Sorted Set — listpack 인코딩 (소규모)</text>
+  <text x="350" y="40" text-anchor="middle" fill="#aaa" font-size="9">zset-max-listpack-entries ≤ 128 &amp; zset-max-listpack-value ≤ 64 bytes</text>
+
+  <!-- Listpack structure -->
+  <text x="60" y="66" fill="#999" font-size="9" font-weight="600">연속 메모리 블록 (member, score 교차 배치)</text>
+
+  <g transform="translate(40, 78)">
+    <!-- header -->
+    <rect x="0" y="0" width="60" height="36" rx="4" fill="#eee" stroke="#ccc" stroke-width="1"/>
+    <text x="30" y="15" text-anchor="middle" fill="#999" font-size="8" font-weight="600">header</text>
+    <text x="30" y="28" text-anchor="middle" fill="#bbb" font-size="7">total_bytes</text>
+
+    <!-- entry 1: member -->
+    <rect x="66" y="0" width="70" height="36" rx="4" fill="#c0392b" opacity="0.12" stroke="#c0392b" stroke-width="1"/>
+    <text x="101" y="15" text-anchor="middle" fill="#c0392b" font-size="8" font-weight="600">맥북</text>
+    <text x="101" y="28" text-anchor="middle" fill="#999" font-size="7">member</text>
+
+    <!-- entry 1: score -->
+    <rect x="140" y="0" width="50" height="36" rx="4" fill="#2980b9" opacity="0.12" stroke="#2980b9" stroke-width="1"/>
+    <text x="165" y="15" text-anchor="middle" fill="#2980b9" font-size="8" font-weight="600">90.0</text>
+    <text x="165" y="28" text-anchor="middle" fill="#999" font-size="7">score</text>
+
+    <!-- entry 2: member -->
+    <rect x="196" y="0" width="70" height="36" rx="4" fill="#8e44ad" opacity="0.12" stroke="#8e44ad" stroke-width="1"/>
+    <text x="231" y="15" text-anchor="middle" fill="#8e44ad" font-size="8" font-weight="600">아이패드</text>
+    <text x="231" y="28" text-anchor="middle" fill="#999" font-size="7">member</text>
+
+    <!-- entry 2: score -->
+    <rect x="270" y="0" width="50" height="36" rx="4" fill="#2980b9" opacity="0.12" stroke="#2980b9" stroke-width="1"/>
+    <text x="295" y="15" text-anchor="middle" fill="#2980b9" font-size="8" font-weight="600">70.0</text>
+    <text x="295" y="28" text-anchor="middle" fill="#999" font-size="7">score</text>
+
+    <!-- entry 3: member -->
+    <rect x="326" y="0" width="70" height="36" rx="4" fill="#2e7d32" opacity="0.12" stroke="#2e7d32" stroke-width="1"/>
+    <text x="361" y="15" text-anchor="middle" fill="#2e7d32" font-size="8" font-weight="600">에어팟</text>
+    <text x="361" y="28" text-anchor="middle" fill="#999" font-size="7">member</text>
+
+    <!-- entry 3: score -->
+    <rect x="400" y="0" width="50" height="36" rx="4" fill="#2980b9" opacity="0.12" stroke="#2980b9" stroke-width="1"/>
+    <text x="425" y="15" text-anchor="middle" fill="#2980b9" font-size="8" font-weight="600">50.0</text>
+    <text x="425" y="28" text-anchor="middle" fill="#999" font-size="7">score</text>
+
+    <!-- ... -->
+    <rect x="456" y="0" width="40" height="36" rx="4" fill="#fff" stroke="#ddd" stroke-width="1" stroke-dasharray="4"/>
+    <text x="476" y="22" text-anchor="middle" fill="#bbb" font-size="10">…</text>
+
+    <!-- end -->
+    <rect x="502" y="0" width="50" height="36" rx="4" fill="#eee" stroke="#ccc" stroke-width="1"/>
+    <text x="527" y="15" text-anchor="middle" fill="#999" font-size="8" font-weight="600">0xFF</text>
+    <text x="527" y="28" text-anchor="middle" fill="#bbb" font-size="7">end</text>
+  </g>
+
+  <!-- Arrow showing contiguous memory -->
+  <line x1="60" y1="124" x2="580" y2="124" stroke="#e67e22" stroke-width="1.5" marker-end="url(#arrlp)"/>
+  <text x="320" y="140" text-anchor="middle" fill="#e67e22" font-size="8" font-weight="600">← 연속 메모리: CPU L1 캐시 히트율 극대화 →</text>
+
+  <!-- Comparison -->
+  <line x1="60" y1="156" x2="640" y2="156" stroke="#eee" stroke-width="1"/>
+  <text x="60" y="174" fill="#999" font-size="9" font-weight="600">인코딩 전환 기준 (redis.conf)</text>
+
+  <g transform="translate(60, 184)">
+    <rect x="0" y="0" width="260" height="28" rx="5" fill="#2e7d32" opacity="0.08" stroke="#2e7d32" stroke-width="0.8"/>
+    <text x="130" y="18" text-anchor="middle" fill="#2e7d32" font-size="9">entries ≤ 128 &amp; value ≤ 64B → <tspan font-weight="700">listpack</tspan></text>
+
+    <rect x="280" y="0" width="280" height="28" rx="5" fill="#c0392b" opacity="0.08" stroke="#c0392b" stroke-width="0.8"/>
+    <text x="420" y="18" text-anchor="middle" fill="#c0392b" font-size="9">초과 시 → <tspan font-weight="700">skiplist + hashtable</tspan></text>
+  </g>
+
+  <!-- Performance note -->
+  <line x1="60" y1="226" x2="640" y2="226" stroke="#eee" stroke-width="1"/>
+  <text x="350" y="248" text-anchor="middle" fill="#333" font-size="10">
+    <tspan font-weight="700" fill="#2e7d32">listpack</tspan>: O(N) 탐색이지만 연속 메모리 → 캐시 친화적 |
+    <tspan font-weight="700" fill="#c0392b">skiplist</tspan>: O(logN) 포인터 점프
+  </text>
+
+  <defs>
+    <marker id="arrlp" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto"><path d="M0,0 L7,2.5 L0,5" fill="#e67e22"/></marker>
+  </defs>
+</svg>

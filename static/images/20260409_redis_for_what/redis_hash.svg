@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 700 300" xmlns="http://www.w3.org/2000/svg" font-family="Fira Code, monospace">
+  <rect width="700" height="300" fill="#fefefe"/>
+
+  <!-- Title -->
+  <text x="350" y="24" text-anchor="middle" fill="#333" font-size="13" font-weight="700">Hash — 필드 단위 접근</text>
+  <text x="350" y="40" text-anchor="middle" fill="#aaa" font-size="9">HGET O(1) | HGETALL O(N) | 부분 업데이트 가능</text>
+
+  <!-- Key -->
+  <rect x="40" y="60" width="140" height="160" rx="8" fill="#fffcf7" stroke="#e67e22" stroke-width="1.5"/>
+  <text x="110" y="82" text-anchor="middle" fill="#e67e22" font-size="11" font-weight="700">KEY</text>
+  <text x="110" y="100" text-anchor="middle" fill="#333" font-size="10">session:abc123</text>
+
+  <!-- Arrow -->
+  <line x1="184" y1="140" x2="236" y2="140" stroke="#ccc" stroke-width="1.5" marker-end="url(#arr2)"/>
+
+  <!-- Hash fields -->
+  <rect x="240" y="60" width="420" height="160" rx="8" fill="#f4faf4" stroke="#2e7d32" stroke-width="1.5"/>
+  <text x="450" y="82" text-anchor="middle" fill="#2e7d32" font-size="11" font-weight="700">FIELDS</text>
+
+  <!-- Field rows -->
+  <rect x="260" y="94" width="140" height="28" rx="4" fill="#fff" stroke="#2e7d32" stroke-width="0.8"/>
+  <text x="330" y="112" text-anchor="middle" fill="#2e7d32" font-size="9" font-weight="600">userId</text>
+  <rect x="410" y="94" width="230" height="28" rx="4" fill="#fff" stroke="#999" stroke-width="0.8"/>
+  <text x="525" y="112" text-anchor="middle" fill="#333" font-size="9">"1001"</text>
+
+  <rect x="260" y="130" width="140" height="28" rx="4" fill="#fff" stroke="#2e7d32" stroke-width="0.8"/>
+  <text x="330" y="148" text-anchor="middle" fill="#2e7d32" font-size="9" font-weight="600">role</text>
+  <rect x="410" y="130" width="230" height="28" rx="4" fill="#2e7d32" opacity="0.08" stroke="#2e7d32" stroke-width="1.2"/>
+  <text x="525" y="148" text-anchor="middle" fill="#2e7d32" font-size="9" font-weight="700">"ADMIN" ← HGET O(1)</text>
+
+  <rect x="260" y="166" width="140" height="28" rx="4" fill="#fff" stroke="#2e7d32" stroke-width="0.8"/>
+  <text x="330" y="184" text-anchor="middle" fill="#2e7d32" font-size="9" font-weight="600">loginAt</text>
+  <rect x="410" y="166" width="230" height="28" rx="4" fill="#fff" stroke="#999" stroke-width="0.8"/>
+  <text x="525" y="184" text-anchor="middle" fill="#333" font-size="9">"2026-04-09T10:00"</text>
+
+  <!-- vs String comparison -->
+  <line x1="40" y1="240" x2="660" y2="240" stroke="#eee" stroke-width="1"/>
+  <text x="350" y="258" text-anchor="middle" fill="#999" font-size="9">String 방식: GET → JSON 전체 파싱 필요 | Hash 방식: HGET field → 필요한 값만 O(1)</text>
+
+  <!-- Key insight -->
+  <text x="350" y="288" text-anchor="middle" fill="#e67e22" font-size="10" font-weight="700">RDB 비유: 한 행(row) — SELECT role FROM sessions WHERE id = 'abc123'</text>
+
+  <defs>
+    <marker id="arr2" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto"><path d="M0,0 L7,2.5 L0,5" fill="#ccc"/></marker>
+  </defs>
+</svg>
