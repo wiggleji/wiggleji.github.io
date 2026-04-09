@@ -1,0 +1,748 @@
+<!DOCTYPE html><html><head><meta charSet="utf-8"/><meta http-equiv="x-ua-compatible" content="ie=edge"/><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"/><meta name="generator" content="Gatsby 5.16.1"/><meta name="description" content="DB 인덱스의 내부 동작 원리와 설계 전략 — InnoDB 물리 구조부터 복합 인덱스까지" data-gatsby-head="true"/><meta property="og:title" content="조회 성능개선 참고하라고 | Wiggleji&#x27;s Blog" data-gatsby-head="true"/><meta property="og:description" content="DB 인덱스의 내부 동작 원리와 설계 전략 — InnoDB 물리 구조부터 복합 인덱스까지" data-gatsby-head="true"/><meta property="og:url" content="https://wiggleji.github.io" data-gatsby-head="true"/><meta property="og:type" content="website" data-gatsby-head="true"/><meta name="twitter:card" content="summary" data-gatsby-head="true"/><meta name="twitter:title" content="조회 성능개선 참고하라고 | Wiggleji&#x27;s Blog" data-gatsby-head="true"/><meta name="twitter:description" content="DB 인덱스의 내부 동작 원리와 설계 전략 — InnoDB 물리 구조부터 복합 인덱스까지" data-gatsby-head="true"/><style data-href="/styles.d091ce78d323772fcddb.css" data-identity="gatsby-global-css">@import url(https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap);code[class*=language-],pre[class*=language-]{word-wrap:normal;color:#657b83;font-family:Consolas,Monaco,Andale Mono,Ubuntu Mono,monospace;font-size:1em;-webkit-hyphens:none;hyphens:none;line-height:1.5;tab-size:4;text-align:left;white-space:pre;word-break:normal;word-spacing:normal}code[class*=language-] ::selection,code[class*=language-]::selection,pre[class*=language-] ::selection,pre[class*=language-]::selection{background:#073642}pre[class*=language-]{border-radius:.3em;margin:.5em 0;padding:1em}:not(pre)>code[class*=language-],pre[class*=language-]{background-color:#fdf6e3}:not(pre)>code[class*=language-]{border-radius:.3em;padding:.1em}.token.cdata,.token.comment,.token.doctype,.token.prolog{color:#93a1a1}.token.punctuation{color:#586e75}.token.namespace{opacity:.7}.token.boolean,.token.constant,.token.deleted,.token.number,.token.property,.token.symbol,.token.tag{color:#268bd2}.token.attr-name,.token.builtin,.token.char,.token.inserted,.token.selector,.token.string,.token.url{color:#2aa198}.token.entity{background:#eee8d5;color:#657b83}.token.atrule,.token.attr-value,.token.keyword{color:#859900}.token.class-name,.token.function{color:#b58900}.token.important,.token.regex,.token.variable{color:#cb4b16}.token.bold,.token.important{font-weight:700}.token.italic{font-style:italic}.token.entity{cursor:help}:root{--sol-base03:#002b36;--sol-base02:#073642;--sol-base01:#586e75;--sol-base00:#657b83;--sol-base0:#839496;--sol-base1:#93a1a1;--sol-base2:#eee8d5;--sol-base3:#fdf6e3;--sol-yellow:#b58900;--sol-orange:#cb4b16;--sol-red:#dc322f;--sol-magenta:#d33682;--sol-violet:#6c71c4;--sol-blue:#268bd2;--sol-cyan:#2aa198;--sol-green:#859900;--color-bg:#faf6ef;--color-bg-alt:#f0ebe1;--color-bg-code:#fdf6e3;--color-text:#4a4a4a;--color-text-secondary:#6b6b6b;--color-heading:var(--sol-base02);--color-link:var(--sol-blue);--color-link-hover:var(--sol-cyan);--color-accent:var(--sol-cyan);--color-border:#e0dbd2;--color-tag-bg:var(--sol-base2);--color-tag-text:var(--sol-base01);--color-category-bg:var(--sol-blue);--color-category-text:#fff;--font-body:"Noto Sans","Noto Sans KR",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;--font-heading:"Noto Sans","Noto Sans KR",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;--font-mono:"Fira Code","Source Code Pro","Consolas",monospace;--content-max-width:980px;--sidebar-width:240px;--toc-width:220px;--header-height:60px;--space-xs:0.25rem;--space-sm:0.5rem;--space-md:1rem;--space-lg:1.5rem;--space-xl:2rem;--space-2xl:3rem;--radius-sm:4px;--radius-md:8px;--radius-lg:12px}*,:after,:before{box-sizing:border-box;margin:0;padding:0}html{font-size:16px;scroll-behavior:smooth;scroll-padding-top:calc(var(--header-height) + 1rem)}body{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;background-color:var(--color-bg);color:var(--color-text);font-family:var(--font-body);line-height:1.5}h1,h2,h3,h4,h5,h6{color:var(--color-heading);font-family:var(--font-heading);font-weight:600;line-height:1.25;margin-bottom:16px;margin-top:24px}h1{font-size:2em}h1,h2{border-bottom:1px solid var(--color-border);padding-bottom:.3em}h2{font-size:1.5em}h3{font-size:1.25em}h4{font-size:1em}p{margin-bottom:16px}a{color:var(--color-link);text-decoration:none;transition:color .2s ease}a:hover{color:var(--color-link-hover);text-decoration:underline}ol,ul{margin-bottom:16px;padding-left:2em}li,li+li{margin-top:.25em}blockquote{border-left:.25em solid var(--color-border);color:var(--color-text-secondary);margin:0 0 16px;padding:0 1em}hr{background-color:var(--color-border);border:0;height:.25em;margin:24px 0;padding:0}img{border-radius:var(--radius-md);height:auto;max-width:100%}code,pre{font-family:var(--font-mono);font-size:85%}:not(pre)>code{background-color:rgba(175,184,193,.2);border-radius:6px;color:var(--sol-base01);font-size:85%;padding:.2em .4em}pre[class*=language-]{border:1px solid var(--color-border);border-radius:6px;line-height:1.45;margin:0 0 16px;overflow:auto;padding:16px}.gatsby-highlight,table{margin:0 0 16px}table{border-collapse:collapse;display:block;overflow:auto;width:100%}td,th{border:1px solid var(--color-border);padding:6px 13px;text-align:left}th{background-color:var(--color-bg-alt);font-weight:600}.image-row{align-items:flex-start;display:flex;gap:8px;justify-content:center;margin-bottom:4px}.image-row img{display:inline-block;flex:0 1 auto;margin:0}::selection{background-color:var(--sol-base2);color:var(--sol-base01)}.layout-module--siteWrapper--562b4{display:flex;flex-direction:column;min-height:100vh}.layout-module--main--df787{flex:1 1;margin:0 auto;max-width:1280px;padding:var(--space-xl) var(--space-lg);width:100%}.layout-module--listLayout--f8f24{display:grid;gap:var(--space-2xl);grid-template-columns:var(--sidebar-width) 1fr;margin:0 auto;max-width:1100px}.layout-module--postLayout--11eca{display:grid;gap:var(--space-2xl);grid-template-columns:1fr var(--toc-width);margin:0 auto;max-width:1280px}.layout-module--content--6b2c7{max-width:var(--content-max-width);min-width:0;padding:0 16px}@media (max-width:1024px){.layout-module--listLayout--f8f24,.layout-module--postLayout--11eca{grid-template-columns:1fr}}@media (max-width:768px){.layout-module--main--df787{padding:var(--space-md)}}.toc-module--tocWrapper--76c4d{align-self:start;max-height:calc(100vh - var(--header-height) - var(--space-2xl));overflow-y:auto;position:sticky;top:calc(var(--header-height) + var(--space-xl))}.toc-module--tocTitle--fed84{border-bottom:2px solid var(--color-accent);color:var(--color-text-secondary);font-size:.85rem;font-weight:600;letter-spacing:.05em;margin-bottom:var(--space-md);padding-bottom:var(--space-sm);text-transform:uppercase}.toc-module--tocList--d9000{list-style:none;margin:0;padding:0}.toc-module--tocList--d9000 .toc-module--tocList--d9000{padding-left:var(--space-md)}.toc-module--tocItem--91248{margin-bottom:var(--space-xs)}.toc-module--tocLink--0b58d{border-left:2px solid transparent;border-radius:0 var(--radius-sm) var(--radius-sm) 0;color:var(--color-text-secondary);display:block;font-size:.85rem;line-height:1.4;padding:var(--space-xs) var(--space-sm);transition:all .2s ease}.toc-module--tocLink--0b58d:hover{background-color:var(--color-bg-alt);color:var(--color-link);text-decoration:none}.toc-module--tocLinkActive--a57f9{background-color:var(--color-bg-alt);border-left-color:var(--color-link);color:var(--color-link);font-weight:500}.toc-module--tocMobile--b4560{display:none;margin-bottom:var(--space-xl)}.toc-module--tocMobileToggle--0bf90{align-items:center;background-color:var(--color-bg-alt);border:1px solid var(--color-border);border-radius:var(--radius-md);color:var(--color-text);cursor:pointer;display:flex;font-family:var(--font-body);font-size:.9rem;justify-content:space-between;padding:var(--space-sm) var(--space-md);width:100%}.toc-module--tocMobileContent--a3547{background-color:var(--color-bg);border:1px solid var(--color-border);border-radius:0 0 var(--radius-md) var(--radius-md);border-top:none;padding:var(--space-md)}@media (max-width:1024px){.toc-module--tocWrapper--76c4d{display:none}.toc-module--tocMobile--b4560{display:block}}.post-module--postCard--7a020{border-bottom:1px solid var(--color-border);padding:var(--space-lg) 0}.post-module--postCard--7a020:last-child{border-bottom:none}.post-module--postTitle--c001d{color:var(--color-heading);font-size:1.35rem;margin:0 0 var(--space-sm) 0}.post-module--postTitle--c001d a{color:inherit;text-decoration:none}.post-module--postTitle--c001d a:hover{color:var(--color-link)}.post-module--postMeta--7f8f8{align-items:center;display:flex;flex-wrap:wrap;font-size:.85rem;gap:var(--space-sm);margin-bottom:var(--space-sm)}.post-module--postDate--6b995,.post-module--postMeta--7f8f8{color:var(--color-text-secondary)}.post-module--postExcerpt--a3eae{color:var(--color-text);font-size:.95rem;line-height:1.6}.post-module--postHeader--0a87b{border-bottom:1px solid var(--color-border);margin-bottom:16px;padding-bottom:16px}.post-module--postHeaderTitle--401d5{border-bottom:none;font-size:2em;margin:0 0 8px;padding-bottom:0}.post-module--postHeaderMeta--fc78f{align-items:center;color:var(--color-text-secondary);display:flex;flex-wrap:wrap;font-size:.875rem;gap:var(--space-md)}.post-module--postBody--b0af4{font-size:16px;line-height:1.5}.post-module--postBody--b0af4 h1{font-size:2em;margin-top:48px}.post-module--postBody--b0af4 h2{font-size:1.5em;margin-top:48px}.post-module--postBody--b0af4 h3{font-size:1.25em;margin-top:24px}.post-module--postBody--b0af4 h1:first-child,.post-module--postBody--b0af4 h2:first-child{margin-top:0}.post-module--postBody--b0af4 img{display:block;margin-bottom:4px;margin-left:auto;margin-right:auto}.post-module--postBody--b0af4 p>em:only-child{color:var(--color-text-secondary);display:block;font-size:.875em;margin-bottom:16px;margin-top:0;text-align:center}.post-module--postTags--f8069{display:flex;flex-wrap:wrap;gap:var(--space-sm);padding-top:var(--space-lg)}.post-module--commentsSection--d0af2,.post-module--postTags--f8069{border-top:1px solid var(--color-border);margin-top:var(--space-2xl)}.post-module--commentsSection--d0af2{padding-top:var(--space-xl)}.sidebar-module--sidebar--25bea{align-self:start;position:sticky;top:calc(var(--header-height) + var(--space-xl))}.sidebar-module--sidebarSection--da2ba{margin-bottom:var(--space-xl)}.sidebar-module--sidebarTitle--3ff15{border-bottom:2px solid var(--color-accent);color:var(--color-text-secondary);font-size:.85rem;font-weight:600;letter-spacing:.05em;margin-bottom:var(--space-md);padding-bottom:var(--space-sm);text-transform:uppercase}.sidebar-module--categoryList--7d53d{list-style:none;margin:0;padding:0}.sidebar-module--categoryItem--90da6{margin-bottom:var(--space-xs)}.sidebar-module--categoryLink--5dd89{align-items:center;border-radius:var(--radius-sm);color:var(--color-text);display:flex;font-size:.9rem;justify-content:space-between;padding:var(--space-xs) var(--space-sm);transition:background-color .2s}.sidebar-module--categoryLink--5dd89:hover{background-color:var(--color-bg-alt);text-decoration:none}.sidebar-module--categoryCount--a9691{background-color:var(--color-bg-alt);border-radius:10px;color:var(--color-text-secondary);font-size:.8rem;padding:0 var(--space-sm)}.sidebar-module--tagCloud--15f9d{display:flex;flex-wrap:wrap;gap:var(--space-sm)}.sidebar-module--tagCloudItem--00919{background-color:var(--color-tag-bg);border-radius:var(--radius-sm);color:var(--color-tag-text);display:inline-block;font-size:.8rem;padding:var(--space-xs) var(--space-sm);transition:background-color .2s}.sidebar-module--tagCloudItem--00919:hover{background-color:var(--color-border);text-decoration:none}@media (max-width:1024px){.sidebar-module--sidebar--25bea{border-bottom:1px solid var(--color-border);display:flex;flex-wrap:wrap;gap:var(--space-xl);margin-bottom:var(--space-lg);padding-bottom:var(--space-lg);position:static}.sidebar-module--sidebarSection--da2ba{flex:1 1;min-width:200px}}</style><script>
+    document.addEventListener("DOMContentLoaded", function(event) {
+      var hash = window.decodeURI(location.hash.replace('#', ''))
+      if (hash !== '') {
+        var element = document.getElementById(hash)
+        if (element) {
+          var scrollTop = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop
+          var clientTop = document.documentElement.clientTop || document.body.clientTop || 0
+          var offset = element.getBoundingClientRect().top + scrollTop - clientTop
+          // Wait for the browser to finish rendering before scrolling.
+          setTimeout((function() {
+            window.scrollTo(0, offset - 100)
+          }), 0)
+        }
+      }
+    })
+  </script><style>.gatsby-image-wrapper{position:relative;overflow:hidden}.gatsby-image-wrapper picture.object-fit-polyfill{position:static!important}.gatsby-image-wrapper img{bottom:0;height:100%;left:0;margin:0;max-width:none;padding:0;position:absolute;right:0;top:0;width:100%;object-fit:cover}.gatsby-image-wrapper [data-main-image]{opacity:0;transform:translateZ(0);transition:opacity .25s linear;will-change:opacity}.gatsby-image-wrapper-constrained{display:inline-block;vertical-align:top}</style><noscript><style>.gatsby-image-wrapper noscript [data-main-image]{opacity:1!important}.gatsby-image-wrapper [data-placeholder-image]{opacity:0!important}</style></noscript><script type="module">const e="undefined"!=typeof HTMLImageElement&&"loading"in HTMLImageElement.prototype;e&&document.body.addEventListener("load",(function(e){const t=e.target;if(void 0===t.dataset.mainImage)return;if(void 0===t.dataset.gatsbyImageSsr)return;let a=null,n=t;for(;null===a&&n;)void 0!==n.parentNode.dataset.gatsbyImageWrapper&&(a=n.parentNode),n=n.parentNode;const o=a.querySelector("[data-placeholder-image]"),r=new Image;r.src=t.currentSrc,r.decode().catch((()=>{})).then((()=>{t.style.opacity=1,o&&(o.style.opacity=0,o.style.transition="opacity 500ms linear")}))}),!0);</script><link rel="preconnect" href="https://www.googletagmanager.com"/><link rel="dns-prefetch" href="https://www.googletagmanager.com"/><script async="" src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script><script>
+      
+      
+      if(true) {
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+
+        gtag('config', 'G-XXXXXXXXXX', {"send_page_view":false});
+      }
+      </script><title data-gatsby-head="true">조회 성능개선 참고하라고 | Wiggleji&#x27;s Blog</title></head><body><div id="___gatsby"><div style="outline:none" tabindex="-1" id="gatsby-focus-wrapper"><div class="layout-module--siteWrapper--562b4"><header style="position:sticky;top:0;z-index:100;background-color:var(--color-bg);border-bottom:1px solid var(--color-border);height:var(--header-height);display:flex;align-items:center"><div style="width:100%;max-width:1200px;margin:0 auto;padding:0 var(--space-lg);display:flex;align-items:center;justify-content:space-between"><a style="font-size:1.2rem;font-weight:700;color:var(--color-heading);text-decoration:none" href="/en/">wiggleji&#x27;s memento</a><nav style="display:flex;align-items:center;gap:var(--space-lg)"><a style="color:var(--color-text);font-size:0.9rem" href="/en/">Home</a><a style="color:var(--color-text);font-size:0.9rem" href="/en/tags/">Tags</a><a style="color:var(--color-text);font-size:0.9rem" href="/en/categories/">Categories</a><button style="background:none;border:1px solid var(--color-border);border-radius:var(--radius-sm);padding:0.3rem 0.8rem;cursor:pointer;font-family:var(--font-body);font-size:0.85rem;color:var(--color-text);transition:background-color 0.2s" aria-label="Switch to 한국어">한국어</button></nav></div></header><main class="layout-module--main--df787"><div class="layout-module--postLayout--11eca"><article class="layout-module--content--6b2c7"><div class="toc-module--tocMobile--b4560"><button class="toc-module--tocMobileToggle--0bf90" aria-expanded="false"><span>Table of Contents</span><span>▼</span></button></div><header class="post-module--postHeader--0a87b"><h1 class="post-module--postHeaderTitle--401d5">조회 성능개선 참고하라고</h1><div class="post-module--postHeaderMeta--fc78f"><span>March 12, 2026</span></div></header><div class="post-module--postBody--b0af4"><h1 id="무엇을-설명하는가">무엇을 설명하는가</h1>
+<p>데이터 조회 성능을 개선하는 세 가지 전략(DB 인덱스, 캐시, 비정규화)을 간략히 소개하고, 그 중 DB 인덱스의 내부 동작 원리와 설계 전략을 다룬다.</p>
+<p>&quot;  인덱스를 걸면 빨라진다&quot;는 것은 모두 안다. 하지만 <strong>어떻게, 왜</strong> 빨라지는지, 인덱스 설계 시 무엇이 중요한지, 어떤 쿼리에서 인덱스가 <strong>무용지물</strong>이 되는지를 InnoDB의 물리적 저장 구조와 같이 알아본다.</p>
+<h1 id="왜-작성하는가">왜 작성하는가</h1>
+<p>서비스를 개발하거나 운영하다 보면 성능 개선과 관련된 용어를 자주 접하게 된다.
+N+1, 인덱스, 비정규화, 캐시 등 여러 방법이 있으며, 각 상황에 맞는 방법을 올바르게 선택하여 적용해야 한다.</p>
+<p>&quot;그거 그냥 캐시하면 안 돼?&quot;, &quot;인덱스 걸어&quot; 등 방법을 제시하는 건 쉽지만, 그 방법의 타당성을 검증하는 건 어렵다. 만약 얘기대로 단순히 캐시를 붙였는데 캐시 미스가 발생하면? Redis가 장애를 일으키면? 인덱스 적용 후 쿼리가 그대로 느리거나, 몇 달이 지나고 다시 느려진다면?</p>
+<p>올바른 사용을 위해선 도구를 이해하고, 그에 맞는 사용법을 익혀야 한다.</p>
+<br/>
+<p><strong>만약 여러 가지 전략 중 딱 하나만 골라서 학습하고 적용한다고 하면, 필자는 망설임 없이 DB 인덱스를 선택할 것이다.</strong></p>
+<p>서비스의 규모와 상관없이 DB는 존재해야 하고, 캐싱과 명확히 다른 역할을 갖는다.</p>
+<p>캐시는 DB의 부하를 줄여주지만, DB 쿼리 자체의 성능을 개선하지는 않는다. 인덱스가 제대로 설계되어 있지 않으면, 캐시 미스 한 번에 수만 행을 풀 스캔하는 쿼리가 실행된다.</p>
+<p>인덱스를 제대로 이해하려면 <strong>DB가 데이터를 어떻게 저장하고 읽는지</strong>를 먼저 알아야 한다. 디스크에서 페이지 단위로 읽는다는 것, B+Tree가 어떻게 생겼는지, Clustered Index와 Secondary Index가 왜 다르게 동작하는지 — 이것들을 이해해야 논리적인 인덱스 설계가 가능하  다. 이 글에서는 InnoDB의 물리적 저장 구조부터 시작해서 복합 인덱스 설계 원칙까지를 다룬다.</p>
+<p>이 글은 필자가 조회 성능 개선이 필요할 때 참고하기 위해 작성한 기록이다.</p>
+<img src="https://i.namu.wiki/i/x4CNOPQ0cpZN8CDnydECrSeDCpgf9N8AOyTPtL_X3K8QoSIoiWV4jRIacIM-chZcBW4-N906UfVvBzSeG5OtEYMXMPTkUO3RKvjZupOHFxG25TZEU-A8uKxMEAA43hWHyPREczRFas5TvvwZApmYUQ.webp" width="300"/>
+<p><em>그냥 참고하라고</em></p>
+<br/>
+<hr/>
+<h1 id="서론">서론</h1>
+<h2 id="조회-성능-개선의-세-가지-전략">조회 성능 개선의 세 가지 전략</h2>
+<p>데이터 조회가 느릴 때, 크게 세 가지 방향으로 접근할 수 있다.</p>
+<span><div class="gatsby-highlight" data-language="text"><pre class="language-text"><code class="language-text">┌─────────────────────────────────────────────────────────────────┐
+│  Server Application (JVM)                                       │
+│                                                                 │
+│  ┌───────────────────────────────────┐                          │
+│  │  In-Memory Cache (Local)          │  ◄── Caffeine, Guava     │
+│  │  ┌─────────┐ ┌─────────┐          │      EhCache 등           │
+│  │  │ key → v │ │ key → v │  (RAM)   │                          │
+│  │  └─────────┘ └─────────┘          │  휘발성, 인스턴스별 독립       │
+│  └───────────────────────────────────┘                          │
+│                     │                                           │
+│              Cache Miss 시                                       │
+│                     │                                           │
+└─────────────────────┼───────────────────────────────────────────┘
+                      │
+        ┌─────────────┼─────────────┐
+        │             │             │
+        ▼             │             ▼
+┌──────────────┐      │      ┌─────────────────────────────────┐
+│ Redis Server │      │      │  Database (MySQL InnoDB)        │
+│ (별도 인스턴스)  │      │      │                                 │
+│              │      │      │  ┌─ Index (B+Tree) ──────────┐  │
+│ ┌──────────┐ │      │      │  │  쿼리 실행 경로 최적화         │  │
+│ │ key → v  │ │      │      │  │  (디스크에 영구 저장)          │  │
+│ │ key → v  │ │      │      │  └────────────────────────────┘ │
+│ │  (RAM)   │ │      │      │                                 │
+│ └──────────┘ │      │      │  ┌─ Materialized View ────────┐ │
+│              │      └──────┤  │  집계 결과 미리 저장            │ │
+│ 휘발성         │             │  │  (디스크에 영구 저장)           │ │
+│ 별도 인프라     │             │  └────────────────────────────┘ │
+│ 장애 시 소실    │             │                                 │
+└──────────────┘             │  영구 저장, 추가 인프라 불필요         │
+                             │  장애 시에도 항상 동작               │
+     ◄── Cache ──►           └─────────────────────────────────┘
+     DB 접근 횟수를                    ◄── DB 최적화 ──►
+     줄여주지만,                       쿼리 자체를 빠르게
+     DB 쿼리 자체를                    만든다
+     빠르게 하진 않는다</code></pre></div></span>
+<span><div class="gatsby-highlight" data-language="text"><pre class="language-text"><code class="language-text">          &lt;&lt; 요청 흐름 >>
+
+Client → Cache Hit? ──Yes──→ 즉시 반환
+                        │
+                        No / 장애
+                        │
+                        ▼
+                   DB 쿼리 실행 → 인덱스 있으면 Index Scan, 없으면 Full Table Scan</code></pre></div></span>
+<p>캐시는 <strong>서버 인메모리(Local Cache)</strong> 또는 <strong>별도 인스턴스(Redis)</strong> 에 위치한다. 둘 다 RAM 기반이라 빠르지만 휘발성이며, 장애 시 결국 DB로 요청이 흘러간다.</p>
+<p>반면 인덱스와 Materialized View는 <strong>DB 내부, 디스크에 영구 저장</strong>된다. 별도 인프라 없이 DB만으로 동작하고, 장애 시에도 항상 유효하다.</p>
+<h3 id="1-캐시-redis-memcached-등">1. 캐시 (Redis, Memcached 등)</h3>
+<p>DB 접근 <strong>자체를 줄이는</strong> 전략이다. 조회 결과를 인메모리(in-memory)에 저장해두고, 같은 요청이 오면 DB를 거치지 않고 메모리에서 즉시 반환한다.</p>
+<ul>
+<li><strong>동작 위치</strong>: DB 외부, 별도 인메모리 저장소</li>
+<li><strong>효과</strong>: 반복 조회 시 DB 접근 제로. 응답 속도 ms 단위</li>
+<li><strong>비용</strong>: 별도 인프라 운영 (Redis 클러스터 등), 메모리 비용</li>
+<li><strong>한계</strong>: 휘발성(volatile) — 캐시 서버 재시작 시 데이터 소실. 캐시 미스나 Redis 장애 시 결국 DB 쿼리가 실행됨. 원본 데이터와의 일관성(consistency) 관리 필요</li>
+</ul>
+<h3 id="2-db-인덱스">2. DB 인덱스</h3>
+<p>DB가 <strong>쿼리를 실행하는 방식 자체를 최적화</strong>하는 전략이다. 테이블의 특정 컬럼에 B+Tree 구조를 만들어, 풀 스캔 대신 인덱스 탐색으로 필요한 행만 빠르게 찾는다.</p>
+<ul>
+<li><strong>동작 위치</strong>: DB 내부, 디스크에   영구 저장</li>
+<li><strong>효과</strong>: Full table scan → Index scan, filesort 제거</li>
+<li><strong>비용</strong>: 인덱스마다 디스크 공간 소비, INSERT/UPDATE 시 B+Tree 갱신 비용</li>
+<li><strong>한계</strong>: 쓰기 비용 증가. 잘못된 인덱스 설계 시 효과 없음</li>
+</ul>
+<h3 id="3-비정규화--materialized-view">3. 비정규화 / Materialized View</h3>
+<p><strong>쿼리의 복잡도 자체를 줄이는</strong> 전략이다. JOIN이나 GROUP BY가 필요한 계산 결과를 미리 저장해두어, 조회 시 단순한 SELECT만으로 결과를 얻는다.</p>
+<ul>
+<li><strong>동작 위치</strong>: DB 내부, 디스크에 영구 저장</li>
+<li><strong>효과</strong>: 복잡한 JOIN/GROUP BY 제거, 집계 결과 즉시 조회</li>
+<li><strong>비용</strong>: 데이터 중복 저장, 동기화 로직 관리</li>
+<li><strong>한계</strong>: 원본 데이터 변경 시 동기화 필요. 동기화 지점이 많아지면 유지보수 비용 증가</li>
+</ul>
+<h3 id="비교">비교</h3>
+<table><thead><tr><th></th><th>캐시</th><th>DB 인덱스</th><th>비정규화 / MV</th></tr></thead><tbody><tr><td><strong>동작 위치</strong></td><td>DB 외부 (인메모리)</td><td>DB 내부 (디스크)</td><td>DB 내부 (디스크)</td></tr><tr><td><strong>영속성</strong></td><td>휘발성</td><td>영구</td><td>영구</td></tr><tr><td><strong>인프라 비용</strong></td><td>별도 서버 필요</td><td>추가 비용 없음</td><td>추가 비용 없음</td></tr><tr><td><strong>최적화 대상</strong></td><td>DB 접근 횟수</td><td>쿼리 실행 효율</td><td>쿼리 복잡도</td></tr><tr><td><strong>장애 시</strong></td><td>DB fallback 필요</td><td>항상 동작</td><td>항상 동작</td></tr></tbody></table>
+<p>이 세 가지는 배타적이 아니라 <strong>보완적</strong>이다. 하지만 우선순위가 있다.</p>
+<p>캐시는 강력하지만, 별도 인프라가 필요하고, 장애 시 결국 DB 쿼리가 실행된다. 반면 DB 인덱스는 <strong>추가 인프라 없이, DB만으로 동작하며, 장애 시에도 항상 유효</strong>하다. 서비스 규모와 관계없이 DB는 반드시 존재하고, 인덱스는 그 DB 위에서 동작한다.</p>
+<p>캐시를 붙이기 전에 먼저 물어봐야 할 질문은 <strong>&quot;이 쿼리 자체가 충분히 빠른가?&quot;</strong> 다.
+캐시는 애플리케이션이 별도 DB 접근 없이 빠른 응답을 전달하기 위한 보완 전략이지 DB 최적화를 대체하는 것이 아니다.</p>
+<p><strong>DB 최적화가 먼저, 캐시는 그 다음이다.</strong> 이 글에서는 DB 최적화의 핵심인 인덱스에 집중한다.</p>
+<p>그리고 인덱스를 제대로 설계하려면 DB가 데이터를 <strong>어떻게 저장하고 읽는지</strong>부터 알아야 한다.</p>
+<br/>
+<hr/>
+<h1 id="본론">본론</h1>
+<h2 id="1-innodb의-물리적-저장-구조">1. InnoDB의 물리적 저장 구조</h2>
+<h3 id="디스크에서-행까지">디스크에서 행까지</h3>
+<span><div class="gatsby-highlight" data-language="text"><pre class="language-text"><code class="language-text">MySQL Data Directory (/var/lib/mysql/)
+
+  /var/lib/mysql/
+  │
+  ├── ibdata1              ← System Tablespace (메타데이터, undo logs)
+  ├── ib_logfile0          ← Redo Log (crash recovery)
+  ├── ib_logfile1          ← Redo Log
+  │
+  └── mydb/                ← Database "mydb"
+      ├── users.ibd        ← Table "users" (데이터 + 인덱스 전부)
+      ├── orders.ibd       ← Table "orders"
+      └── products.ibd     ← Table "products"</code></pre></div></span>
+<p>MySQL은 당연하지만 모든 정보를 파일로 관리하고, 디스크/SSD 등 비휘발성 저장매체에 저장한다. InnoDB는 <strong>하나의 테이블 = 하나의 <span><code class="language-text">.ibd</code></span> 파일</strong>로 저장하며, 이 파일 안에 Clustered Index(실제 데이터)와 모든 Secondary Index가 함께 들어있다.</p>
+<h3 id="ibd-파일-내부-tablespace--segment--extent--page">.ibd 파일 내부: Tablespace → Segment → Extent → Page</h3>
+<span><div class="gatsby-highlight" data-language="text"><pre class="language-text"><code class="language-text">┌─────────────────────────────────────────────────────┐
+│                 products.ibd (Tablespace)           │
+├─────────────────────────────────────────────────────┤
+│                                                     │
+│  ┌─ Segment: Clustered Index (PK) ───────────────┐  │
+│  │                                               │  │
+│  │  테이블의 실제 데이터가 PK 순서대로 여기 저장           │  │
+│  │                                               │  │
+│  │  Extent 0 (1MB = 64 pages × 16KB)             │  │
+│  │  ┌──────┬──────┬──────┬──────┬── ─ ─┐         │  │
+│  │  │Page 0│Page 1│Page 2│Page 3│  ... │         │  │
+│  │  │ 16KB │ 16KB │ 16KB │ 16KB │      │         │  │
+│  │  └──────┴──────┴──────┴──────┴── ─ ─┘         │  │
+│  │                                               │  │
+│  │  Extent 1 (1MB = 64 pages)                    │  │
+│  │  ┌──────┬──────┬──────┬── ─ ─┐                │  │
+│  │  │Pg 64 │Pg 65 │Pg 66 │  ... │                │  │
+│  │  └──────┴──────┴──────┴── ─ ─┘                │  │
+│  └───────────────────────────────────────────────┘  │
+│                                                     │
+│  ┌─ Segment: Secondary Index (idx_status) ────────┐ │
+│  │  (status) + PK만 저장. 별도의 B+Tree              │ │
+│  │  Extent (1MB = 64 pages)                       │ │
+│  │  ┌──────┬──────┬──────┬── ─ ─┐                 │ │
+│  │  │Page  │Page  │Page  │  ... │                 │ │
+│  │  └──────┴──────┴──────┴── ─ ─┘                 │ │
+│  └────────────────────────────────────────────────┘ │
+│                                                     │
+│  (Secondary Index를 추가할수록 Segment가 늘어남)          │
+│  (= 저장 공간 증가 + INSERT/UPDATE 시 갱신 비용)          │
+└─────────────────────────────────────────────────────┘
+
+계층 정리:
+  Tablespace (.ibd)
+    └─ Segment (인덱스 하나 = Segment 하나)
+         └─ Extent (1MB = 64 Pages, 공간 할당 단위)
+              └─ Page (16KB, I/O의 최소 단위)
+                   └─ Row (실제 행 데이터)</code></pre></div></span>
+<h3 id="page--모든-것의-기본-단위-16kb">Page — 모든 것의 기본 단위 (16KB)</h3>
+<p>디스크에서 1바이트를 읽든 16KB를 읽든, InnoDB는 항상 <strong>페이지 단위</strong>로 읽는다. 페이지가 모든 I/O의 최소 단위다.</p>
+<img src="https://i0.wp.com/jcole.us/blog/files/innodb/20130103/50dpi/Basic_Page_Overview.png" width="300"/>
+<p><em><a href="https://blog.jcole.us/2013/01/03/the-basics-of-innodb-space-file-layout/">https://blog.jcole.us/2013/01/03/the-basics-of-innodb-space-file-layout/</a></em></p>
+<p>이제 Index 의 페이지를 살펴보자.</p>
+<img src="https://i0.wp.com/jcole.us/blog/files/innodb/20130106/50dpi/INDEX_Page_Overview.png" width="300"/>
+<p><em><a href="https://blog.jcole.us/category/mysql/innodb/page/4/">https://blog.jcole.us/category/mysql/innodb/page/4/</a></em></p>
+<span><div class="gatsby-highlight" data-language="text"><pre class="language-text"><code class="language-text">┌──────────────────────────────────────────────────────┐
+│  Page Header (38 bytes)                              │
+│  ┌────────────────────────────────────────────────┐  │
+│  │  Page Number          : 310                    │  │
+│  │  Page Type            : INDEX (B+Tree node)    │  │
+│  │  Prev Page Pointer    : 309                    │  │
+│  │  Next Page Pointer    : 311                    │  │
+│  │  Level                : 0 (leaf)               │  │
+│  │  Number of Records    : 4                      │  │
+│  └────────────────────────────────────────────────┘  │
+│  ※ Prev/Next Pointer로 리프 페이지끼리 이중 연결 리스트      │
+│                                                      │
+│  Infimum  (가상의 최소 레코드, 탐색 시작점)                 │
+│  Supremum (가상의 최대 레코드, 탐색 끝점)                   │
+│                                                      │
+│  ┌──── Record Area (위 → 아래로 삽입) ───────────────┐  │
+│  │                                                │  │
+│  │  Record 1: [header][PK=101][col1][col2][...]   │  │
+│  │       │                                        │  │
+│  │       ▼  (다음 레코드를 가리키는 포인터)              │  │
+│  │  Record 2: [header][PK=102][col1][col2][...]   │  │
+│  │       │                                        │  │
+│  │       ▼                                        │  │
+│  │  Record 3: [header][PK=103][col1][col2][...]   │  │
+│  │                                                │  │
+│  │  ┌─────────── Free Space ──────────────┐       │  │
+│  │  │  (새 레코드가 채워지는 영역)              │       │  │
+│  │  │  위에서 아래로 줄어듦                    │       │  │
+│  │  └─────────────────────────────────────┘       │  │
+│  └────────────────────────────────────────────────┘  │
+│                                                      │
+│  ┌──── Page Directory (아래 → 위로 증가) ─────────┐     │
+│  │  페이지 내 이진 탐색(binary search)을 위한 슬롯    │     │
+│  │  4~8개 레코드마다 하나의 슬롯 생성                 │     │
+│  │                                             │     │
+│  │  Slot 0 → Infimum                           │     │
+│  │  Slot 1 → Record 1 (PK=101)                 │     │
+│  │  Slot 2 → Record 3 (PK=103)                 │     │
+│  │  Slot 3 → Supremum                          │     │
+│  └─────────────────────────────────────────────┘     │
+│                                                      │
+│  Page Trailer (8 bytes — checksum for integrity)     │
+└──────────────────────────────────────────────────────┘
+
+레코드를 찾는 과정 (페이지 안에서):
+  1. Page Directory의 슬롯으로 이진 탐색 → 대략적 위치
+  2. 슬롯이 가리키는 레코드부터 linked list 따라가며 정확한 위치
+
+Free Space가 0이 되면 → 페이지 꽉 참 → INSERT 시 Page Split 발생</code></pre></div></span>
+<hr/>
+<h2 id="2-btree--인덱스의-자료구조">2. B+Tree — 인덱스의 자료구조</h2>
+<p>InnoDB의 <strong>모든 인덱스</strong>는 B+Tree 구조다.</p>
+<span><div class="gatsby-highlight" data-language="text"><pre class="language-text"><code class="language-text">            ┌──────────────────────┐
+            │     Root Page        │   Level 2
+            │   항상 메모리에 캐시      │
+            │  &lt;50  │ &lt;100 │ ≥100  │
+            └───┬───┴───┬──┴───┬───┘
+                │       │      │
+       ┌────────┘       │      └────────┐
+       ▼                ▼               ▼
+┌────────┐       ┌────────┐       ┌────────┐
+│Internal│       │Internal│       │Internal│  Level 1
+│ &lt;10    │       │ &lt;60    │       │ &lt;110   │  (보통 메모리에 캐시)
+│ &lt;20    │       │ &lt;70    │       │ &lt;120   │
+│ &lt;30    │       │ &lt;80    │       │ &lt;130   │
+└──┬─┬───┘       └──┬─┬───┘       └──┬─┬───┘
+   │ │              │ │              │ │
+   ▼ ▼              ▼ ▼              ▼ ▼
+┌────┐┌────┐  ┌────┐┌────┐  ┌────┐┌────┐
+│Leaf││Leaf│  │Leaf││Leaf│  │Leaf││Leaf│  Level 0
+│    ││    │  │    ││    │  │    ││    │  (실제 데이터)
+└──┬─┘└─┬──┘  └─┬──┘└─┬──┘  └─┬──┘└────┘
+   │◄───┘◄──────┘◄────┘◄──────┘
+   Leaf끼리 이중 연결 리스트 (◄►)
+   → ORDER BY, 범위 스캔 시 다음 리프로 순차 이동</code></pre></div></span>
+<p>핵심 특성:</p>
+<ul>
+<li><strong>Balanced</strong>: 모든 리프 노드의 깊이가 동일 → O(log N) 보장</li>
+<li><strong>노드 하나 = 16KB 페이지 하나</strong></li>
+<li><strong>Leaf 연결</strong>: 리프 노드끼리 이중 연결 리스트 → 범위 스캔에 유리</li>
+<li><strong>깊이와 용량</strong>: Internal 페이지당 <del>1,200개 포인터. Depth 3이면 수억 행 커버. 대부분의 실무 테이블은 3</del>4회 페이지 읽기로 원하는 행에 도달한다.</li>
+</ul>
+<blockquote>
+<p>B+Tree 의 구조와 작동 방식을 직접 경험해보고 싶으면 아래 링크로 접속해보자.<br/>
+위에서 얘기한 Page Split 을 통한 데이터 삽입/삭제/정렬을 직접 체험할 수 있다.<br/>
+<a href="https://www.cs.usfca.edu/~galles/visualization/BPlusTree.html">https://www.cs.usfca.edu/~galles/visualization/BPlusTree.html</a></p>
+</blockquote>
+<hr/>
+<h2 id="3-clustered-index--테이블-데이터-그-자체">3. Clustered Index — 테이블 데이터 그 자체</h2>
+<span><div class="gatsby-highlight" data-language="text"><pre class="language-text"><code class="language-text">CREATE TABLE reports (
+    id         BIGINT PRIMARY KEY,    ← Clustered Index 키
+    company_id BIGINT,
+    status     VARCHAR(20),
+    amount     DECIMAL(10,2),
+    email      VARCHAR(100),
+    created_at DATETIME
+);</code></pre></div></span>
+<p>Clustered Index는 <strong>테이블 그 자체</strong>다.</p>
+<span><div class="gatsby-highlight" data-language="text"><pre class="language-text"><code class="language-text">Clustered Index B+Tree:
+
+            ┌──────────────────────┐
+            │     Root (Internal)  │
+            │   50  │  100  │  150 │
+            └───┬───┴───┬───┴───┬──┘
+                │       │       │
+       ┌────────┘       │       └────────┐
+       ▼                ▼                ▼
+┌─────────────┐  ┌─────────────┐  ┌─────────────┐
+│  Leaf Page  │  │  Leaf Page  │  │  Leaf Page  │
+│             │  │             │  │             │
+│ PK=1:       │  │ PK=51:      │  │ PK=101:     │
+│  company=5  │  │  company=8  │  │  company=5  │
+│  status=    │  │  status=    │  │  status=    │
+│   'active'  │  │   'done'    │  │   'active'  │
+│  amount=    │  │  amount=    │  │  amount=    │
+│   50000     │  │   32000     │  │   78000     │
+│  email=     │  │  email=     │  │  email=     │
+│   'kim@..'  │  │   'lee@..'  │  │   'park@..' │
+│             │  │             │  │             │
+│ PK=2:       │  │ PK=52:      │  │ PK=102:     │
+│  (모든       │  │  (모든       │  │  (모든       │
+│   컬럼)      │  │   컬럼)      │  │   컬럼)      │
+│             │◄─┤             │◄─┤             │
+└─────────────┘  └─────────────┘  └─────────────┘
+     ◄──── 이중 연결 리스트 ────►</code></pre></div></span>
+<ul>
+<li>테이블당 정확히 <strong>1개</strong></li>
+<li>PK 순서로 행이 물리적으로 정렬/저장됨</li>
+<li>리프 노드에 <strong>행의 모든 컬럼</strong>이 저장됨</li>
+<li><span><code class="language-text">SELECT * FROM reports WHERE id = 101</code></span> → Root → Leaf → <strong>모든 컬럼 즉시 획득</strong></li>
+</ul>
+<h3 id="pk-타입이-물리적-구조에-미치는-영향">PK 타입이 물리적 구조에 미치는 영향</h3>
+<span><div class="gatsby-highlight" data-language="text"><pre class="language-text"><code class="language-text">AUTO_INCREMENT (1, 2, 3, 4 ...)
+────────────────────────────────
+항상 맨 오른쪽 리프에 INSERT → 순차 쓰기 → Page Split 거의 없음
+
+┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐
+│1,2,3 │→│4,5,6 │→│7,8,9 │→│10,11 │ ← 여기만 INSERT
+│FULL  │ │FULL  │ │FULL  │ │ ...  │
+└──────┘ └──────┘ └──────┘ └──────┘
+페이지 사용률: ~90-95% (공간 효율 좋음)
+
+
+UUID (랜덤)
+────────────────────────────────
+아무 리프에나 INSERT → 랜덤 쓰기 → Page Split 빈번
+
+┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐
+│a1,c3 │→│b2,d4 │→│e5,f6 │→│g7,h8 │
+│ ↑    │ │  ↑   │ │      │ │ ↑    │
+│INSERT│ │INSERT│ │      │ │INSERT│ ← 여기저기 INSERT
+└──────┘ └──────┘ └──────┘ └──────┘
+페이지 사용률: ~50-70% (공간 낭비 + Split 비용)</code></pre></div></span>
+<hr/>
+<h2 id="4-secondary-index--별도의-탐색-경로">4. Secondary Index — 별도의 탐색 경로</h2>
+<p>Secondary Index는 <strong>별도의 B+Tree</strong>다. 리프에 <strong>인덱스 컬럼 + PK만</strong> 저장한다.</p>
+<span><div class="gatsby-highlight" data-language="text"><pre class="language-text"><code class="language-text">CREATE INDEX idx_company_status ON reports(company_id, status);
+
+idx_company_status B+Tree:
+
+          ┌───────────────────────┐
+          │    Root (Internal)    │
+          │  (5,'done')│(8,'act') │
+          └─────┬──────┴─────┬────┘
+                │            │
+       ┌────────┘            └────────┐
+       ▼                              ▼
+┌──────────────────┐      ┌───────────────────┐
+│    Leaf Page     │      │    Leaf Page      │
+│                  │      │                   │
+│ (5,'active')→PK=1│      │ (8,'active')→PK=3 │
+│ (5,'active')→PK=4│      │ (8,'done')  →PK=6 │
+│ (5,'done')  →PK=2│      │ (12,'active')→PK=7│
+│                  │◄────►│                   │
+└──────────────────┘      └───────────────────┘
+
+리프에 있는 것:  인덱스 컬럼(company_id, status) + PK(id)
+리프에 없는 것:  amount, email, created_at 등 나머지 컬럼</code></pre></div></span>
+<h3 id="왜-pk만-저장하는가">왜 PK만 저장하는가?</h3>
+<span><div class="gatsby-highlight" data-language="text"><pre class="language-text"><code class="language-text">만약 행 전체를 저장한다면:
+
+  idx_A 리프: [인덱스키][전체 행 복사본]  ← 500 bytes/행
+  idx_B 리프: [인덱스키][전체 행 복사본]  ← 500 bytes/행
+  idx_C 리프: [인덱스키][전체 행 복사본]  ← 500 bytes/행
+
+  문제 1: 인덱스 3개 = 행 데이터의 3배 저장 공간
+  문제 2: UPDATE 시 모든 인덱스의 복사본도 갱신
+  문제 3: Page Split 시 행의 물리 주소가 바뀌면
+          모든 인덱스의 주소도 갱신 필요
+
+PK만 저장하면:
+
+  idx_A 리프: [인덱스키][PK=8 bytes]
+  idx_B 리프: [인덱스키][PK=8 bytes]
+  idx_C 리프: [인덱스키][PK=8 bytes]
+
+  이점 1: 저장 공간 최소화
+  이점 2: 인덱스 대상이 아닌 컬럼(예: email, amount) 변경 시 Secondary Index 갱신 불필요
+  이점 3: Clustered Index Page Split 시에도 Secondary Index 영향 없음
+
+  대가: 이중 탐색 비용 (Secondary → Clustered Lookup)</code></pre></div></span>
+<h3 id="pk-크기가-모든-secondary-index에-미치는-영향">PK 크기가 모든 Secondary Index에 미치는 영향</h3>
+<span><div class="gatsby-highlight" data-language="text"><pre class="language-text"><code class="language-text">PK = BIGINT (8 bytes)              PK = UUID CHAR(36) (36 bytes)
+─────────────────────              ──────────────────────────────
+
+idx_email 리프 엔트리:                idx_email 리프 엔트리:
+[email: ~30B] + [PK: 8B]           [email: ~30B] + [PK: 36B]
+= ~38 bytes                         = ~66 bytes
+
+결과:
+- 페이지당 엔트리 수 감소 → 트리 깊이 증가
+- 모든 Secondary Index 크기 부풀림
+- Buffer Pool에서 더 많은 메모리 차지
+- 인덱스가 N개면 영향도 N배</code></pre></div></span>
+<hr/>
+<h2 id="5-이중-탐색-vs-커버링-인덱스">5. 이중 탐색 vs 커버링 인덱스</h2>
+<p>Secondary Index에서 원하는 행을 찾아도, SELECT에 필요한 컬럼이 인덱스에 없으면 <strong>Clustered Index를 다시 조회</strong>해야 한다.</p>
+<h3 id="이중-탐색-bookmark-lookup">이중 탐색 (Bookmark Lookup)</h3>
+<span><div class="gatsby-highlight" data-language="text"><pre class="language-text"><code class="language-text">인덱스: idx_company_status(company_id, status)
+쿼리:   SELECT email, amount FROM reports
+        WHERE company_id = 5 AND status = 'active';
+
+→ email, amount는 Secondary Index에 없음 → 이중 탐색 필요
+
+
+Step 1: Secondary Index 탐색
+┌──────────────────────┐
+│ idx_company_status   │
+│ Leaf:                │
+│ (5,'active') → PK=1  │──┐
+│ (5,'active') → PK=4  │──┼─ PK 값 획득
+└──────────────────────┘  │
+                          │
+Step 2: PK로 Clustered Index 조회 (행 수만큼 반복!)
+                          │
+     ┌────────────────────┘
+     │  PK=1 → Clustered Index 탐색
+     ▼
+┌──────────────────────────────────────────┐
+│  Clustered Index Leaf:                   │
+│  PK=1: email='kim@..', amount=50000      │ → 획득!
+└──────────────────────────────────────────┘
+     │  PK=4 → 한 번 더
+     ▼
+┌──────────────────────────────────────────┐
+│  PK=4: email='cho@..', amount=15000      │ → 획득!
+└──────────────────────────────────────────┘
+
+매칭 행이 N개 → Clustered Index lookup N번
+각 lookup이 랜덤 I/O일 수 있음 → 느림</code></pre></div></span>
+<h3 id="커버링-인덱스-covering-index--이중-탐색-회피">커버링 인덱스 (Covering Index) — 이중 탐색 회피</h3>
+<span><div class="gatsby-highlight" data-language="text"><pre class="language-text"><code class="language-text">같은 인덱스: idx_company_status(company_id, status)
+다른 쿼리:   SELECT company_id, status FROM reports
+             WHERE company_id = 5 AND status = 'active';
+
+→ 필요한 모든 컬럼(company_id, status)이 Secondary Index 안에 이미 있음!
+
+
+Step 1: Secondary Index 탐색 → 끝!
+┌──────────────────────────┐
+│ idx_company_status       │
+│ Leaf:                    │
+│ (5,'active') → PK=1      │ → company_id=5, status='active' 획득!
+│ (5,'active') → PK=4      │ → company_id=5, status='active' 획득!
+└──────────────────────────┘
+
+Clustered Index 조회 없음!
+→ 랜덤 I/O 제거, 리프 페이지 순차 읽기만으로 완료
+
+EXPLAIN Extra: "Using index"</code></pre></div></span>
+<p>커버링이 되려면, <strong>SELECT 절 + WHERE 절 + ORDER BY 절 + GROUP BY 절의 모든 컬럼</strong>이 해당 인덱스에 포함되어야 한다. 쿼리가 참조하는 컬럼 중 하나라도 인덱스에 없으면 Clustered Index 조회가 필요하다. PK는 항상 Secondary Index에 포함되므로 SELECT에 PK가 있어도 커버링이 된다.</p>
+<hr/>
+<h2 id="6-전체-쿼리-실행-흐름-시작부터-끝까지">6. 전체 쿼리 실행 흐름: 시작부터 끝까지</h2>
+<p>지금까지 배운 것을 하나의 흐름으로 이어보자.</p>
+<span><div class="gatsby-highlight" data-language="text"><pre class="language-text"><code class="language-text">쿼리:    SELECT email, amount FROM reports
+         WHERE company_id = 5 AND status = 'active';
+인덱스:  idx_company_status(company_id, status)</code></pre></div></span>
+<span><div class="gatsby-highlight" data-language="text"><pre class="language-text"><code class="language-text">[Client: Application]
+     │  SQL 전송
+     ▼
+┌──────────────────────────────────────────────────┐
+│  MySQL Server Layer                              │
+│  ┌────────────────────────────────────────────┐  │
+│  │  Parser → Optimizer → Execution Engine     │  │
+│  │                                            │  │
+│  │  Optimizer 판단:                            │  │
+│  │  "idx_company_status 사용,                  │  │
+│  │   email/amount 필요하니 이중 탐색 필요"          │  │
+│  └────────────────────────────────────────────┘  │
+└───────────────────┬──────────────────────────────┘
+                    ▼
+┌──────────────────────────────────────────────────┐
+│  InnoDB Storage Engine                           │
+│                                                  │
+│  ┌──────────────────────────────────────────┐    │
+│  │         Buffer Pool (메모리)               │    │
+│  │                                          │    │
+│  │  ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐     │    │
+│  │  │ Root │ │Cache │ │Cache │ │Cache │     │    │
+│  │  │Pages │ │Page A│ │Page B│ │Page C│     │    │
+│  │  │(항상) │ │      │ │      │ │      │     │    │
+│  │  └──────┘ └──────┘ └──────┘ └──────┘     │    │
+│  │                                          │    │
+│  │  Hit → 메모리에서 즉시 반환                   │    │
+│  │  Miss → 디스크에서 읽어서 캐시 후 반환          │    │
+│  └──────────────────┬───────────────────────┘    │
+│                     │ Miss일 때만                  │
+│                     ▼                            │
+│            ┌─────────────────┐                   │
+│            │  Disk I/O       │                   │
+│            │  reports.ibd    │                   │
+│            └─────────────────┘                   │
+└──────────────────────────────────────────────────┘</code></pre></div></span>
+<span><div class="gatsby-highlight" data-language="text"><pre class="language-text"><code class="language-text">상세 실행 흐름:
+
+① Secondary Index Root → (5,'active') 이하 → Page 200으로
+
+② Secondary Index Leaf (Page 200)
+   (5, 'active') → PK=1   ✓ 매칭
+   (5, 'active') → PK=4   ✓ 매칭
+   (5, 'done')   → PK=2   ✗ 스캔 종료
+   결과: PK = [1, 4]. email, amount가 필요 → Clustered 조회
+
+③ Clustered Index Root → PK=1 → Page 10으로
+
+④ Clustered Index Leaf (Page 10)
+   PK=1: email='kim@test.com', amount=50000 → 획득!
+
+⑤ PK=4도 동일 과정 반복
+   PK=4: email='cho@test.com', amount=15000 → 획득!
+
+⑥ 결과 반환:
+   email            │ amount
+   ─────────────────┼───────
+   kim@test.com     │ 50000
+   cho@test.com     │ 15000</code></pre></div></span>
+<p>이 쿼리에서 읽은 페이지:</p>
+<span><div class="gatsby-highlight" data-language="text"><pre class="language-text"><code class="language-text">Secondary Index: Root(1) + Leaf(1) = 2 pages
+Clustered Index: Root(1) + Leaf(1~2) = 2~3 pages
+합계: 4~5 pages × 16KB = 64~80KB
+
+vs Full Table Scan (인덱스 없이):
+   테이블 전체 = 수천~수만 pages = 수십 MB ~ 수 GB</code></pre></div></span>
+<p>인덱스를 통한 쿼리 실행 흐름을 최대한 간략히 알아보았다.</p>
+<p>이제 단일 인덱스와 복합 인덱스의 차이를 통해 인덱스 설계의 중요성을 알아보자.</p>
+<hr/>
+<h2 id="7-단일-인덱스의-한계">7. 단일 인덱스의 한계</h2>
+<span><div class="gatsby-highlight" data-language="sql"><pre class="language-sql"><code class="language-sql"><span class="token keyword">WHERE</span> company_id <span class="token operator">=</span> <span class="token number">5</span> <span class="token operator">AND</span> <span class="token keyword">status</span> <span class="token operator">=</span> <span class="token string">'active'</span> <span class="token keyword">ORDER</span> <span class="token keyword">BY</span> created_at <span class="token keyword">DESC</span> <span class="token keyword">LIMIT</span> <span class="token number">20</span></code></pre></div></span>
+<p>MySQL은 일반적으로 하나의 쿼리 실행 시 테이블당 인덱스를 1개만 선택한다. Index Merge 예외가 있지만, 복합 인덱스보다 비효율적인 경우가 대부분이다.</p>
+<h3 id="선택지-a-idx_company_id-사용">선택지 A: <span><code class="language-text">idx_company_id</code></span> 사용</h3>
+<span><div class="gatsby-highlight" data-language="text"><pre class="language-text"><code class="language-text">1. 인덱스에서 company_id=5인 행 찾기 (빠름)
+2. 찾은 행들을 테이블에서 읽기
+3. status='active' 필터링
+4. [!] filesort: 메모리에서 created_at로 정렬  ← 느림
+5. LIMIT 20 적용</code></pre></div></span>
+<h3 id="선택지-b-idx_created_at-사용">선택지 B: <span><code class="language-text">idx_created_at</code></span> 사용</h3>
+<span><div class="gatsby-highlight" data-language="text"><pre class="language-text"><code class="language-text">1. 인덱스에서 created_at 순서대로 순회 (이미 정렬됨)
+2. 각 행을 테이블에서 읽기
+3. company_id=5 AND status='active' 필터링
+4. 조건 맞는 행 20개 모이면 종료</code></pre></div></span>
+<p>데이터 분포에 따라 운이 좋으면 빠르게 조회할 수 있겠지만, company_id=5인 행이 드문 경우 수만 행을 스캔해야 20개를 찾을 수 있다.</p>
+<p><strong>두 선택지 모두 비효율적이다.</strong></p>
+<p>더 정확한 검색을 위해서는 여러 개의 컬럼을 활용해 검색을 해야 한다.
+이것이 복합 인덱스가 필요한 이유다.</p>
+<hr/>
+<h2 id="8-복합-인덱스--여러-컬럼을-하나의-정렬된-전화번호부로">8. 복합 인덱스 — 여러 컬럼을 하나의 정렬된 전화번호부로</h2>
+<p>복합 인덱스는 <strong>여러 컬럼을 합쳐서 하나의 정렬된 구조</strong>를 만든다.</p>
+<p><span><code class="language-text">(company_id, status, created_at)</code></span> 복합 인덱스의 리프 페이지:</p>
+<span><div class="gatsby-highlight" data-language="text"><pre class="language-text"><code class="language-text">정렬 규칙: company_id → 같으면 status → 같으면 created_at
+
+  (5, 'active', 01-10), PK=42
+  (5, 'active', 01-15), PK=107
+  (5, 'active', 02-20), PK=339
+  (5, 'done',   01-05), PK=15       ← status 바뀜 → created_at 리셋
+  (5, 'done',   03-01), PK=88
+  (8, 'active', 01-03), PK=201      ← company_id 바뀜
+  ...</code></pre></div></span>
+<p><span><code class="language-text">WHERE company_id=5 AND status='active' ORDER BY created_at DESC LIMIT 20</code></span> 실행 시:</p>
+<span><div class="gatsby-highlight" data-language="text"><pre class="language-text"><code class="language-text">1. 인덱스에서 (5, 'active') 위치로 점프     ← 동등  조건 2개 → 정확한 시작점
+2. 그 지점부터 역순으로 20개 읽기            ← created_at 이미 정렬됨!
+3. 끝.                                      ← filesort 없음</code></pre></div></span>
+<h3 id="leftmost-prefix-rule--왼쪽부터만-사용-가능">Leftmost Prefix Rule — 왼쪽부터만 사용 가능</h3>
+<p>복합 인덱스에서 가장 중요한 규칙이다.</p>
+<span><div class="gatsby-highlight" data-language="text"><pre class="language-text"><code class="language-text">인덱스 (A, B, C) 가 있을 때:
+
+  WHERE A = 1                     → 인덱스 사용 O (A만)
+  WHERE A = 1 AND B = 2           → 인덱스 사용 O (A, B)
+  WHERE A = 1 AND B = 2 AND C = 3 → 인덱스 사용 O (A, B, C)
+  WHERE B = 2                     → 사용 불가 (A를 건너뜀)
+  WHERE B = 2 AND C = 3           → 사용 불가 (A를 건너뜀)
+  WHERE A = 1 AND C = 3           → A만 사용, C는 사용 불가 (B를 건너뜀)</code></pre></div></span>
+<p>전화번호부 비유로 생각하면 직관적이다:</p>
+<span><div class="gatsby-highlight" data-language="text"><pre class="language-text"><code class="language-text">전화번호부: (성, 이름, 전화번호) 순으로 정렬
+
+  김, 민수, 010-1111
+  김, 영희, 010-2222
+  박, 철수, 010-3333
+  이, 민수, 010-4444
+
+- "성=김" → 바로 찾을 수 있다
+- "성=김, 이름=민수" → 바로 찾을 수 있다
+- "이름=민수" → 성을 모르니까 처음부터 끝까지 봐야 한다
+- "성=김, 전화번호=010-2222" → 김씨 전부 보면서 전화번호 비교해야 한다</code></pre></div></span>
+<h3 id="동등-조건-vs-범위-조건--순서가-중요한-이유">동등 조건 vs 범위 조건 — 순서가 중요한 이유</h3>
+<span><div class="gatsby-highlight" data-language="text"><pre class="language-text"><code class="language-text">핵심 규칙:
+  동등(=) 뒤의 컬럼 → 인덱스를 계속 탈 수 있다
+  범위(&lt;, >, BETWEEN) 뒤의 컬럼 → 인덱스를 탈 수 없다
+  (ORDER BY는 범위 조건이 아니라 정렬 연산이다. 뒤에 나오는 E-S-R 규칙 참고)</code></pre></div></span>
+<p>왜 그런지 시각적으로 보자.</p>
+<h4 id="case-a-인덱스-user_id-created_at--동등--범위">Case A: 인덱스 <span><code class="language-text">(user_id, created_at)</code></span> — 동등 + 범위</h4>
+<span><div class="gatsby-highlight" data-language="text"><pre class="language-text"><code class="language-text">  (1, 2025-12-01)
+  (1, 2026-01-05)   ← BETWEEN 시작점
+  (1, 2026-01-15)
+  (1, 2026-02-20)
+  (1, 2026-03-01)   ← BETWEEN 끝점
+  (1, 2026-03-15)
+  (2, 2025-11-01)</code></pre></div></span>
+<p>user_id=1로 점프 → created_at 범위만 스캔 → 최소 I/O</p>
+<h4 id="case-b-인덱스-created_at-user_id--범위--동등-순서-반대">Case B: 인덱스 <span><code class="language-text">(created_at, user_id)</code></span> — 범위 + 동등 (순서 반대)</h4>
+<span><div class="gatsby-highlight" data-language="text"><pre class="language-text"><code class="language-text">  (2025-12-01, 1)
+  (2025-12-01, 5)
+  (2025-12-02, 3)
+  (2026-01-05, 1)   ← user_id=1 (있음)
+  (2026-01-05, 7)   ← user_id=7 (스킵)
+  (2026-01-06, 2)   ← user_id=2 (스킵)
+  (2026-01-06, 1)   ← user_id=1 (있음)
+  ...</code></pre></div></span>
+<p>created_at 범위는 찾지만, 그 안에서 user_id=1이 <strong>흩어져 있어</strong> 전부 스캔해야 한다.</p>
+<p><strong>이것이 &quot;범위 조건 뒤의 컬럼은 인덱스를 탈 수 없다&quot;의 의미다.</strong></p>
+<h3 id="인덱스-활용-패턴-정리">인덱스 활용 패턴 정리</h3>
+<span><div class="gatsby-highlight" data-language="text"><pre class="language-text"><code class="language-text">인덱스 (A, B, C):
+
+  WHERE A = 1 AND B = 2 ORDER BY C     ← A,B,C 모두 활용 (filesort 없음)
+  |     ^eq      ^eq        ^sort
+  |     동등 뒤    동등 뒤     → 정렬 가능
+
+  WHERE A = 1 AND B > 2 ORDER BY C     ← A,B만 활용, C는 filesort
+  |     ^eq      ^range      ^sort
+  |     동등 뒤    범위   뒤     → B 범위 스캔하면 C 순서가 깨짐
+
+  WHERE A = 1 ORDER BY B, C            ← A,B,C 모두 활용 (filesort 없음)
+  |     ^eq        ^sort ^sort
+  |     동등 뒤     → B,C 순서대로 정렬 가능</code></pre></div></span>
+<hr/>
+<h2 id="9-복합-인덱스-설계-원칙">9. 복합 인덱스 설계 원칙</h2>
+<h3 id="e-s-r-규칙">E-S-R 규칙</h3>
+<p>실무에서 대부분의 조회 쿼리는 <span><code class="language-text">WHERE + ORDER BY + LIMIT</code></span> 패턴이다. 이 패턴에 최적화된 인덱스 컬럼 순서가 <strong>E-S-R</strong> 규칙이다.</p>
+<span><div class="gatsby-highlight" data-language="text"><pre class="language-text"><code class="language-text">E (Equality)  — 동등 조건(=) 컬럼을 먼저
+S (Sort)      — ORDER BY 컬럼을 그 다음
+R (Range)     — 범위 조건(&lt;, >, BETWEEN) 컬럼을 마지막</code></pre></div></span>
+<p>왜 정렬(S)이 범위(R)보다 먼저인가?</p>
+<span><div class="gatsby-highlight" data-language="text"><pre class="language-text"><code class="language-text">예시 쿼리:
+  SELECT id, email, amount FROM reports
+  WHERE company_id = 5 AND status = 'active'
+    AND amount > 10000
+  ORDER BY created_at DESC LIMIT 20;
+
+
+E → S → R 인덱스: (company_id, status, created_at, amount)
+  → company_id=5 AND status='active' 블록 안에서
+  → created_at DESC 순으로 이미 정렬됨
+  → 하나씩 읽으며 amount > 10000 필터
+  → 20개 찾으면 즉시 종료. filesort 없음
+
+E → R → S 인덱스: (company_id, status, amount, created_at)
+  → amount > 10000 범위는 줄지만
+  → 그 안에서 created_at 정렬이 깨져 있음
+  → 매칭 전체를 모아서 filesort 후 상위 20개 반환
+  → 매칭이 10만 건이면 10만 건 정렬</code></pre></div></span>
+<p>ORDER BY + LIMIT 패턴에서는 E-S-R이 압도적으로 유리하다. 인덱스 순서대로 읽으면서 LIMIT 수만큼만 반환하면 되기 때문이다.</p>
+<blockquote>
+<p>단, 범위 필터가 데이터를 극적으로 줄이고 ORDER BY + LIMIT가 없는 경우에는 E-R-S가 유리할 수 있다. 항상 EXPLAIN으로 확인해야 한다.</p>
+</blockquote>
+<h3 id="설계-체크리스트">설계 체크리스트</h3>
+<span><div class="gatsby-highlight" data-language="text"><pre class="language-text"><code class="language-text">1. 동등 조건(=) 컬럼을 먼저 놓는다
+2. 동등 조건이 여러 개면 카디널리티가 낮은 것부터
+   (status: 4종류 → company_id: 500종류)
+   → 순서 자체로는 성능 차이 없지만, Leftmost Prefix 재활용 확률이 높아진다
+3. ORDER BY 컬럼을 그 다음에 놓는다
+4. 범위 조건 컬럼을 마지막에 놓는다
+5. 범위 조건은 최대 1개만 인덱스를 탈 수 있다
+6. ORDER BY와 인덱스의 ASC/DESC가 일치해야 filesort를 피한다</code></pre></div></span>
+<h3 id="인덱스를-깨뜨리는-실수들">인덱스를 깨뜨리는 실수들</h3>
+<span><div class="gatsby-highlight" data-language="sql"><pre class="language-sql"><code class="language-sql"><span class="token keyword">WHERE</span> <span class="token keyword">DATE</span><span class="token punctuation">(</span>created_at<span class="token punctuation">)</span> <span class="token operator">=</span> <span class="token string">'2024-01-01'</span>     ← 컬럼에 함수 적용 → 인덱스 X
+<span class="token keyword">WHERE</span> created_at <span class="token operator">>=</span> <span class="token string">'2024-01-01'</span>          ← 직접 비교         → 인덱스 O
+      <span class="token operator">AND</span> created_at <span class="token operator">&lt;</span> <span class="token string">'2024-01-02'</span>
+
+<span class="token keyword">WHERE</span> LOWER<span class="token punctuation">(</span>email<span class="token punctuation">)</span> <span class="token operator">=</span> <span class="token string">'kim@test.com'</span>       ← 컬럼에 함수 적용 → 인덱스 X
+<span class="token keyword">WHERE</span> email <span class="token operator">=</span> <span class="token string">'kim@test.com'</span>              ← 직접 비교         → 인덱스 O
+
+<span class="token keyword">WHERE</span> amount <span class="token operator">+</span> <span class="token number">100</span> <span class="token operator">></span> <span class="token number">500</span>                  ← 컬럼에 연산 적용 → 인덱스 X
+<span class="token keyword">WHERE</span> amount <span class="token operator">></span> <span class="token number">400</span>                        ← 직접 비교         → 인덱스 O</code></pre></div></span>
+<p>컬럼에 함수나 연산을 적용하면 인덱스의 B+Tree 정렬 순서가 깨진다. 항상 컬럼 자체를 비교 대상으로 두어야 한다.</p>
+<hr/>
+<h2 id="10-trade-off--인덱스의-비용">10. Trade-off — 인덱스의 비용</h2>
+<p>인덱스는 공짜가 아니다.</p>
+<table><thead><tr><th>항목</th><th>설명</th></tr></thead><tbody><tr><td>디스크 공간</td><td>인덱스도 디스크에 저장된다. 인덱스가 많을수록 공간 소비</td></tr><tr><td>INSERT 비용</td><td>새 행 추가 시 모든 인덱스의 B+Tree에도 삽입</td></tr><tr><td>UPDATE 비용</td><td>인덱스 컬럼 값 변경 시 B+Tree에서 삭제 후 재삽입 (위치가 바뀌므로)</td></tr><tr><td>DELETE 비용</td><td>인덱스에서도 삭제 마킹 필요</td></tr><tr><td>옵티마이저 부하</td><td>인덱스가 많으면 최적 인덱스 선택에 더 오래 걸림</td></tr></tbody></table>
+<h3 id="읽기-vs-쓰기-비율에-따른-판단">읽기 vs 쓰기 비율에 따른 판단</h3>
+<span><div class="gatsby-highlight" data-language="text"><pre class="language-text"><code class="language-text">읽기 >> 쓰기 (조회 중심 테이블):
+  → 인덱스 추가가 이득. 쓰기 비용을 감수할 가치 있음
+
+쓰기 빈번 (카운터 컬럼, 매 요청마다 UPDATE):
+  → 인덱스의 B+Tree 재정렬이 매번 발생
+  → 읽기 빈도가 쓰기보다 충분히 높아야 인덱스가 이득
+
+거의 안 읽는 컬럼:
+  → 인덱스 추가하면 쓰기 비용만 늘고 읽기 이득 없음. 추가하지 말 것</code></pre></div></span>
+<h3 id="데이터-타입별-특성">데이터 타입별 특성</h3>
+<table><thead><tr><th>데이터 타입</th><th>비교 방식</th><th>특징</th></tr></thead><tbody><tr><td><strong>INT / BIGINT</strong></td><td>정수 비교</td><td>가장 빠름, 크기 작음 (4/8 byte). PK로 가장 이상적</td></tr><tr><td><strong>VARCHAR</strong></td><td>collation 기반 사전순</td><td>비교 비용 높음, 가변 길이. <span><code class="language-text">LIKE 'abc%'</code></span> → 인덱스 O, <span><code class="language-text">LIKE '%abc'</code></span> → 인덱스 X</td></tr><tr><td><strong>DATETIME / TIMESTAMP</strong></td><td>내부 정수 인코딩</td><td>비교 자체는 빠름. <span><code class="language-text">DATE(col)='...'</code></span> → 인덱스 X, <span><code class="language-text">col >= '...'</code></span> → 인덱스 O</td></tr><tr><td><strong>ENUM</strong></td><td>정의 순서 (정수 비교)</td><td>내부적으로 1,2,3.. 정수 매핑. 정렬이 문자열순 아님에 주의</td></tr></tbody></table>
+<br/>
+<hr/>
+<h1 id="결론">결론</h1>
+<p>인덱스라는 개념을 한 문장으로 요약하면, **&quot;데이터 쓰기 비용을 지불하고 읽기 속도를 높이는 데이터 구조&quot;**라고 할 수 있다.</p>
+<span><div class="gatsby-highlight" data-language="text"><pre class="language-text"><code class="language-text">물리 구조:
+  Table    → .ibd 파일 (Clustered + 모든 Secondary Index)
+  Index    → Segment (별도의 B+Tree)
+  B+Tree   → Page (16KB) 단위로 구성
+  Page     → Row 데이터 + Page Directory
+
+두 종류의 인덱스:
+  Clustered Index  = 테이블 자체, PK 순서, 리프에 전체 행
+  Secondary Index  = 별도 B+Tree, 리프에 인덱스컬럼+PK만
+
+데이터 조회:
+  PK 조회           → Clustered Index 직접 탐색 (가장 빠름)
+  Secondary 조회    → Secondary → PK 획득 → Clustered 재조회 (이중 탐색)
+  커버링 인덱스     → Secondary만으로 완료 (이중 탐색 회피)</code></pre></div></span>
+<p>이 구조를 이해하다 보면 자연스럽게 아래와 같이 인덱스 설계 원칙을 정의해 볼 수 있다.</p>
+<ul>
+<li><strong>E(Equal)-S(Sort)-R(Range) 규칙</strong>: 동등 조건 → 정렬 컬럼 → 범위 조건 순으로 배치</li>
+<li><strong>Leftmost Prefix</strong>: 왼쪽부터만 인덱스를 탈 수 있다. 하나의 복합 인덱스가 여러 쿼리를 커버할 수 있다</li>
+<li><strong>범위 뒤는 깨진다</strong>: 범위 조건 뒤의 컬럼은 인덱스 정렬이 보장되지 않는다</li>
+<li><strong>EXPLAIN으로 확인</strong>: 이론이 아닌 실측으로 검증. 옵티마이저의 판단은 데이터 분포에 따라 달라진다</li>
+<li><strong>Trade-off</strong>: 인덱스는 읽기를 빠르게 하지만 쓰기를 느리게 한다. 읽기/쓰기 비율을 고려해야 한다</li>
+</ul>
+<p>결국 인덱스 설계는 <strong>쿼리를 먼저 보는 것</strong>에서 시작한다. &quot;어떤 쿼리가 실행되는가&quot;를 리스트업하고, 각 쿼리의 WHERE/ORDER BY/LIMIT 패턴을 분석하면, 필요한 인덱스가 자연스럽게 도출된다.</p>
+<p>그리고 반드시 EXPLAIN으로 검증하자. 이론적으로 맞는 인덱스도 데이터 분포에 따라 옵티마이저가 무시할 수 있다.</p>
+<p>이론은 이론일 뿐, &quot;참고&quot;하라고 있는 것이지<br/>
+결국은 실전이다!</p>
+<hr/>
+<blockquote>
+<p>Reference</p>
+<ul>
+<li>Real MySQL 8.0 (1권) - <a href="https://product.kyobobook.co.kr/detail/S000001766482">교보문고</a></li>
+<li>MySQL 8.0 Reference Manual — <a href="https://dev.mysql.com/doc/refman/8.0/en/innodb-physical-structure.html">The Physical Structure of an InnoDB Index</a></li>
+<li>MySQL 8.0 Reference Manual — <a href="https://dev.mysql.com/doc/refman/8.0/en/innodb-index-types.html">Clustered and Secondary Indexes</a></li>
+<li>MySQL 8.0 Reference Manual — <a href="https://dev.mysql.com/doc/refman/8.0/en/multiple-column-indexes.html">Multiple-Column Indexes</a></li>
+<li>MySQL 8.0 Reference Manual — <a href="https://dev.mysql.com/doc/refman/8.0/en/explain-output.html">EXPLAIN Output Format</a></li>
+<li>Jeremy Cole blog - <a href="https://blog.jcole.us/innodb/">InnoDB</a></li>
+<li>Use The Index, Luke — <a href="https://use-the-index-luke.com/sql/anatomy">Anatomy of an Index</a></li>
+</ul>
+</blockquote></div><div class="post-module--commentsSection--d0af2"></div></article><nav class="toc-module--tocWrapper--76c4d" aria-label="Table of contents"><h3 class="toc-module--tocTitle--fed84">Table of Contents</h3><ul class="toc-module--tocList--d9000"><li class="toc-module--tocItem--91248"><a href="#무엇을-설명하는가" class="toc-module--tocLink--0b58d ">무엇을 설명하는가</a></li><li class="toc-module--tocItem--91248"><a href="#왜-작성하는가" class="toc-module--tocLink--0b58d ">왜 작성하는가</a></li><li class="toc-module--tocItem--91248"><a href="#서론" class="toc-module--tocLink--0b58d ">서론</a><ul class="toc-module--tocList--d9000"><li class="toc-module--tocItem--91248"><a href="#조회-성능-개선의-세-가지-전략" class="toc-module--tocLink--0b58d ">조회 성능 개선의 세 가지 전략</a><ul class="toc-module--tocList--d9000"><li class="toc-module--tocItem--91248"><a href="#1-캐시-redis-memcached-등" class="toc-module--tocLink--0b58d ">1. 캐시 (Redis, Memcached 등)</a></li><li class="toc-module--tocItem--91248"><a href="#2-db-인덱스" class="toc-module--tocLink--0b58d ">2. DB 인덱스</a></li><li class="toc-module--tocItem--91248"><a href="#3-비정규화--materialized-view" class="toc-module--tocLink--0b58d ">3. 비정규화 / Materialized View</a></li><li class="toc-module--tocItem--91248"><a href="#비교" class="toc-module--tocLink--0b58d ">비교</a></li></ul></li></ul></li><li class="toc-module--tocItem--91248"><a href="#본론" class="toc-module--tocLink--0b58d ">본론</a><ul class="toc-module--tocList--d9000"><li class="toc-module--tocItem--91248"><a href="#1-innodb의-물리적-저장-구조" class="toc-module--tocLink--0b58d ">1. InnoDB의 물리적 저장 구조</a><ul class="toc-module--tocList--d9000"><li class="toc-module--tocItem--91248"><a href="#디스크에서-행까지" class="toc-module--tocLink--0b58d ">디스크에서 행까지</a></li><li class="toc-module--tocItem--91248"><a href="#ibd-파일-내부-tablespace--segment--extent--page" class="toc-module--tocLink--0b58d ">.ibd 파일 내부: Tablespace → Segment → Extent → Page</a></li><li class="toc-module--tocItem--91248"><a href="#page--모든-것의-기본-단위-16kb" class="toc-module--tocLink--0b58d ">Page — 모든 것의 기본 단위 (16KB)</a></li></ul></li><li class="toc-module--tocItem--91248"><a href="#2-btree--인덱스의-자료구조" class="toc-module--tocLink--0b58d ">2. B+Tree — 인덱스의 자료구조</a></li><li class="toc-module--tocItem--91248"><a href="#3-clustered-index--테이블-데이터-그-자체" class="toc-module--tocLink--0b58d ">3. Clustered Index — 테이블 데이터 그 자체</a><ul class="toc-module--tocList--d9000"><li class="toc-module--tocItem--91248"><a href="#pk-타입이-물리적-구조에-미치는-영향" class="toc-module--tocLink--0b58d ">PK 타입이 물리적 구조에 미치는 영향</a></li></ul></li><li class="toc-module--tocItem--91248"><a href="#4-secondary-index--별도의-탐색-경로" class="toc-module--tocLink--0b58d ">4. Secondary Index — 별도의 탐색 경로</a><ul class="toc-module--tocList--d9000"><li class="toc-module--tocItem--91248"><a href="#왜-pk만-저장하는가" class="toc-module--tocLink--0b58d ">왜 PK만 저장하는가?</a></li><li class="toc-module--tocItem--91248"><a href="#pk-크기가-모든-secondary-index에-미치는-영향" class="toc-module--tocLink--0b58d ">PK 크기가 모든 Secondary Index에 미치는 영향</a></li></ul></li><li class="toc-module--tocItem--91248"><a href="#5-이중-탐색-vs-커버링-인덱스" class="toc-module--tocLink--0b58d ">5. 이중 탐색 vs 커버링 인덱스</a><ul class="toc-module--tocList--d9000"><li class="toc-module--tocItem--91248"><a href="#이중-탐색-bookmark-lookup" class="toc-module--tocLink--0b58d ">이중 탐색 (Bookmark Lookup)</a></li><li class="toc-module--tocItem--91248"><a href="#커버링-인덱스-covering-index--이중-탐색-회피" class="toc-module--tocLink--0b58d ">커버링 인덱스 (Covering Index) — 이중 탐색 회피</a></li></ul></li><li class="toc-module--tocItem--91248"><a href="#6-전체-쿼리-실행-흐름-시작부터-끝까지" class="toc-module--tocLink--0b58d ">6. 전체 쿼리 실행 흐름: 시작부터 끝까지</a></li><li class="toc-module--tocItem--91248"><a href="#7-단일-인덱스의-한계" class="toc-module--tocLink--0b58d ">7. 단일 인덱스의 한계</a><ul class="toc-module--tocList--d9000"><li class="toc-module--tocItem--91248"><a href="#선택지-a-idx_company_id-사용" class="toc-module--tocLink--0b58d ">선택지 A: idx_company_id 사용</a></li><li class="toc-module--tocItem--91248"><a href="#선택지-b-idx_created_at-사용" class="toc-module--tocLink--0b58d ">선택지 B: idx_created_at 사용</a></li></ul></li><li class="toc-module--tocItem--91248"><a href="#8-복합-인덱스--여러-컬럼을-하나의-정렬된-전화번호부로" class="toc-module--tocLink--0b58d ">8. 복합 인덱스 — 여러 컬럼을 하나의 정렬된 전화번호부로</a><ul class="toc-module--tocList--d9000"><li class="toc-module--tocItem--91248"><a href="#leftmost-prefix-rule--왼쪽부터만-사용-가능" class="toc-module--tocLink--0b58d ">Leftmost Prefix Rule — 왼쪽부터만 사용 가능</a></li><li class="toc-module--tocItem--91248"><a href="#동등-조건-vs-범위-조건--순서가-중요한-이유" class="toc-module--tocLink--0b58d ">동등 조건 vs 범위 조건 — 순서가 중요한 이유</a><ul class="toc-module--tocList--d9000"><li class="toc-module--tocItem--91248"><a href="#case-a-인덱스-user_id-created_at--동등--범위" class="toc-module--tocLink--0b58d ">Case A: 인덱스 (user_id, created_at) — 동등 + 범위</a></li><li class="toc-module--tocItem--91248"><a href="#case-b-인덱스-created_at-user_id--범위--동등-순서-반대" class="toc-module--tocLink--0b58d ">Case B: 인덱스 (created_at, user_id) — 범위 + 동등 (순서 반대)</a></li></ul></li><li class="toc-module--tocItem--91248"><a href="#인덱스-활용-패턴-정리" class="toc-module--tocLink--0b58d ">인덱스 활용 패턴 정리</a></li></ul></li><li class="toc-module--tocItem--91248"><a href="#9-복합-인덱스-설계-원칙" class="toc-module--tocLink--0b58d ">9. 복합 인덱스 설계 원칙</a><ul class="toc-module--tocList--d9000"><li class="toc-module--tocItem--91248"><a href="#e-s-r-규칙" class="toc-module--tocLink--0b58d ">E-S-R 규칙</a></li><li class="toc-module--tocItem--91248"><a href="#설계-체크리스트" class="toc-module--tocLink--0b58d ">설계 체크리스트</a></li><li class="toc-module--tocItem--91248"><a href="#인덱스를-깨뜨리는-실수들" class="toc-module--tocLink--0b58d ">인덱스를 깨뜨리는 실수들</a></li></ul></li><li class="toc-module--tocItem--91248"><a href="#10-trade-off--인덱스의-비용" class="toc-module--tocLink--0b58d ">10. Trade-off — 인덱스의 비용</a><ul class="toc-module--tocList--d9000"><li class="toc-module--tocItem--91248"><a href="#읽기-vs-쓰기-비율에-따른-판단" class="toc-module--tocLink--0b58d ">읽기 vs 쓰기 비율에 따른 판단</a></li><li class="toc-module--tocItem--91248"><a href="#데이터-타입별-특성" class="toc-module--tocLink--0b58d ">데이터 타입별 특성</a></li></ul></li></ul></li><li class="toc-module--tocItem--91248"><a href="#결론" class="toc-module--tocLink--0b58d ">결론</a></li></ul></nav></div></main><footer style="border-top:1px solid var(--color-border);padding:var(--space-xl) var(--space-lg);text-align:center;font-size:0.85rem;color:var(--color-text-secondary)"><div style="display:flex;justify-content:center;gap:var(--space-lg);margin-bottom:var(--space-md)"><a href="https://github.com/wiggleji" target="_blank" rel="noopener noreferrer" aria-label="GitHub" style="color:var(--color-text-secondary);transition:color 0.2s"><svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"></path></svg></a><a href="https://www.linkedin.com/in/wiggleji/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" style="color:var(--color-text-secondary);transition:color 0.2s"><svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"></path></svg></a></div><p>© <!-- -->2026<!-- --> Wiggleji. <!-- -->All rights reserved.</p><p style="margin-top:var(--space-sm)">Built with<!-- --> <a href="https://www.gatsbyjs.com" target="_blank" rel="noopener noreferrer">Gatsby</a></p></footer></div></div><div id="gatsby-announcer" style="position:absolute;top:0;width:1px;height:1px;padding:0;overflow:hidden;clip:rect(0, 0, 0, 0);white-space:nowrap;border:0" aria-live="assertive" aria-atomic="true"></div></div><script id="gatsby-script-loader">/*<![CDATA[*/window.pagePath="/blog/20260312_query_performance/";/*]]>*/</script><!-- slice-start id="_gatsby-scripts-1" -->
+          <script
+            id="gatsby-chunk-mapping"
+          >
+            window.___chunkMapping="{\"app\":[\"/app-ffe55a74c71d22d37f5c.js\"],\"component---src-pages-404-tsx\":[\"/component---src-pages-404-tsx-871e65d65a987f3a4504.js\"],\"component---src-pages-categories-tsx\":[\"/component---src-pages-categories-tsx-a3f38448093f42fdd3a3.js\"],\"component---src-pages-index-tsx\":[\"/component---src-pages-index-tsx-33dffd5d5cbf145c0bf8.js\"],\"component---src-pages-tags-tsx\":[\"/component---src-pages-tags-tsx-949a1d9062ba5762d412.js\"],\"component---src-templates-blog-post-tsx-content-file-path-content-ko-20260206-test-double-index-mdx\":[\"/component---src-templates-blog-post-tsx-content-file-path-content-ko-20260206-test-double-index-mdx-d9a03e7fb711ddde69db.js\"],\"component---src-templates-blog-post-tsx-content-file-path-content-ko-20260213-requirements-for-design-index-mdx\":[\"/component---src-templates-blog-post-tsx-content-file-path-content-ko-20260213-requirements-for-design-index-mdx-f8e90302a9e15e54cdbc.js\"],\"component---src-templates-blog-post-tsx-content-file-path-content-ko-20260227-dip-is-art-index-mdx\":[\"/component---src-templates-blog-post-tsx-content-file-path-content-ko-20260227-dip-is-art-index-mdx-2b5ebc0fa94c225c132c.js\"],\"component---src-templates-blog-post-tsx-content-file-path-content-ko-20260306-concurrency-lock-index-mdx\":[\"/component---src-templates-blog-post-tsx-content-file-path-content-ko-20260306-concurrency-lock-index-mdx-e95431e6917902588cb7.js\"],\"component---src-templates-blog-post-tsx-content-file-path-content-ko-20260312-query-performance-index-mdx\":[\"/component---src-templates-blog-post-tsx-content-file-path-content-ko-20260312-query-performance-index-mdx-19fa78fe2d500454c605.js\"],\"component---src-templates-blog-post-tsx-content-file-path-content-ko-20260319-resilience-index-mdx\":[\"/component---src-templates-blog-post-tsx-content-file-path-content-ko-20260319-resilience-index-mdx-7d892f9d3bc7de496539.js\"],\"component---src-templates-blog-post-tsx-content-file-path-content-ko-20260326-kafka-event-index-mdx\":[\"/component---src-templates-blog-post-tsx-content-file-path-content-ko-20260326-kafka-event-index-mdx-e9c51bb7e2343aad9d5d.js\"],\"component---src-templates-blog-post-tsx-content-file-path-content-ko-20260402-throttling-index-mdx\":[\"/component---src-templates-blog-post-tsx-content-file-path-content-ko-20260402-throttling-index-mdx-3388968349462753c202.js\"],\"component---src-templates-blog-post-tsx-content-file-path-content-ko-20260409-redis-for-what-index-mdx\":[\"/component---src-templates-blog-post-tsx-content-file-path-content-ko-20260409-redis-for-what-index-mdx-59b6cf95bb5012bb0452.js\"],\"component---src-templates-category-tsx\":[\"/component---src-templates-category-tsx-774defc1144350351f64.js\"],\"component---src-templates-tag-tsx\":[\"/component---src-templates-tag-tsx-bdc81b993b90c861485f.js\"]}";
+          </script>
+        <script>window.___webpackCompilationHash="767d515731542d94e6ef";</script><script src="/webpack-runtime-837ce3937b984a89e229.js" async></script><script src="/framework-31c8c6812871da79e406.js" async></script><script src="/app-ffe55a74c71d22d37f5c.js" async></script><!-- slice-end id="_gatsby-scripts-1" --></body></html>
