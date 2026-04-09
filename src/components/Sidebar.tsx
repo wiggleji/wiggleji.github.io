@@ -10,8 +10,8 @@ interface SidebarData {
         category: string;
         tags: string[];
       };
-      internal: {
-        contentFilePath: string;
+      fields: {
+        lang: string;
       };
     }[];
   };
@@ -29,8 +29,8 @@ const Sidebar: React.FC = () => {
             category
             tags
           }
-          internal {
-            contentFilePath
+          fields {
+            lang
           }
         }
       }
@@ -38,8 +38,8 @@ const Sidebar: React.FC = () => {
   `);
 
   // Filter posts by current language
-  const langPosts = data.allMdx.nodes.filter((node) =>
-    node.internal.contentFilePath.includes(`/content/${language}/`)
+  const langPosts = data.allMdx.nodes.filter(
+    (node) => node.fields?.lang === language
   );
 
   // Count categories

@@ -40,7 +40,7 @@ const Header: React.FC = () => {
             textDecoration: "none",
           }}
         >
-          Wiggleji
+          wiggleji's memento
         </Link>
 
         <nav style={{ display: "flex", alignItems: "center", gap: "var(--space-lg)" }}>

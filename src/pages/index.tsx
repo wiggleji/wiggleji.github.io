@@ -1,6 +1,5 @@
 import React from "react";
 import { graphql, PageProps } from "gatsby";
-import { useI18next } from "gatsby-plugin-react-i18next";
 import Layout from "../components/Layout";
 import PostList from "../components/PostList";
 import Sidebar from "../components/Sidebar";
@@ -20,26 +19,16 @@ interface IndexData {
         description: string;
       };
       excerpt: string;
-      internal: {
-        contentFilePath: string;
-      };
     }[];
   };
 }
 
 const IndexPage: React.FC<PageProps<IndexData>> = ({ data }) => {
-  const { language } = useI18next();
-
-  // Filter posts by current language
-  const posts = data.allMdx.nodes.filter((node) =>
-    node.internal.contentFilePath.includes(`/content/${language}/`)
-  );
-
   return (
     <Layout>
       <div className={styles.listLayout}>
         <Sidebar />
-        <PostList posts={posts} />
+        <PostList posts={data.allMdx.nodes} />
       </div>
     </Layout>
   );
@@ -51,7 +40,10 @@ export const Head = () => <SEO />;
 
 export const query = graphql`
   query IndexPage($language: String!) {
-    allMdx(sort: { frontmatter: { date: DESC } }) {
+    allMdx(
+      filter: { fields: { lang: { eq: $language } } }
+      sort: { frontmatter: { date: DESC } }
+    ) {
       nodes {
         id
         frontmatter {
@@ -63,9 +55,6 @@ export const query = graphql`
           description
         }
         excerpt(pruneLength: 200)
-        internal {
-          contentFilePath
-        }
       }
     }
     locales: allLocale(filter: { language: { eq: $language } }) {

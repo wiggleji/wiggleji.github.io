@@ -4,7 +4,7 @@ import Layout from "../components/Layout";
 import TOC from "../components/TOC";
 import Giscus from "../components/Giscus";
 import SEO from "../components/SEO";
-import { CategoryBadge, TagBadge } from "../components/CategoryTag";
+
 import * as layoutStyles from "../styles/layout.module.css";
 import * as postStyles from "../styles/post.module.css";
 
@@ -42,17 +42,10 @@ const BlogPostTemplate: React.FC<PageProps<BlogPostData>> = ({
             <h1 className={postStyles.postHeaderTitle}>{frontmatter.title}</h1>
             <div className={postStyles.postHeaderMeta}>
               <span>{frontmatter.date}</span>
-              <CategoryBadge category={frontmatter.category} lang={lang} />
             </div>
           </header>
 
           <div className={postStyles.postBody}>{children}</div>
-
-          <div className={postStyles.postTags}>
-            {frontmatter.tags.map((tag) => (
-              <TagBadge key={tag} tag={tag} lang={lang} />
-            ))}
-          </div>
 
           <div className={postStyles.commentsSection}>
             <Giscus lang={lang} />

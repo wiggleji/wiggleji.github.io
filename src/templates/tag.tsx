@@ -3,7 +3,9 @@ import { graphql, PageProps } from "gatsby";
 import { useTranslation } from "gatsby-plugin-react-i18next";
 import Layout from "../components/Layout";
 import PostList from "../components/PostList";
+import Sidebar from "../components/Sidebar";
 import SEO from "../components/SEO";
+import * as layoutStyles from "../styles/layout.module.css";
 
 interface TagPageData {
   allMdx: {
@@ -36,11 +38,14 @@ const TagTemplate: React.FC<PageProps<TagPageData, TagPageContext>> = ({
 
   return (
     <Layout>
-      <div style={{ maxWidth: "var(--content-max-width)", margin: "0 auto" }}>
-        <h1>
-          {t("postsTaggedWith")} <em>#{tag}</em>
-        </h1>
-        <PostList posts={data.allMdx.nodes} />
+      <div className={layoutStyles.listLayout}>
+        <Sidebar />
+        <div>
+          <h1>
+            {t("postsTaggedWith")} <em>#{tag}</em>
+          </h1>
+          <PostList posts={data.allMdx.nodes} />
+        </div>
       </div>
     </Layout>
   );
@@ -55,7 +60,10 @@ export const Head: React.FC<PageProps<TagPageData, TagPageContext>> = ({
 export const query = graphql`
   query TagPage($tag: String!, $language: String!) {
     allMdx(
-      filter: { frontmatter: { tags: { in: [$tag] } } }
+      filter: {
+        frontmatter: { tags: { in: [$tag] } }
+        fields: { lang: { eq: $language } }
+      }
       sort: { frontmatter: { date: DESC } }
     ) {
       nodes {

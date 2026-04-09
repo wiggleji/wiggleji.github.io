@@ -71,6 +71,9 @@ const config: GatsbyConfig = {
             },
           },
         ],
+        mdxOptions: {
+          remarkPlugins: [require("remark-gfm").default],
+        },
       },
     },
     // Image processing

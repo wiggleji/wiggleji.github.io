@@ -112,6 +112,23 @@ export const createPages: GatsbyNode["createPages"] = async ({
   }
 };
 
+// Add a `lang` field to each MDX node based on its file path
+export const onCreateNode: GatsbyNode["onCreateNode"] = ({
+  node,
+  actions,
+}) => {
+  const { createNodeField } = actions;
+  if (node.internal.type === "Mdx") {
+    const filePath = node.internal.contentFilePath || "";
+    const lang = filePath.includes("/content/ko/") ? "ko" : "en";
+    createNodeField({
+      node,
+      name: "lang",
+      value: lang,
+    });
+  }
+};
+
 // Create schema customization to ensure frontmatter fields have correct types
 export const createSchemaCustomization: GatsbyNode["createSchemaCustomization"] = ({
   actions,
@@ -120,6 +137,10 @@ export const createSchemaCustomization: GatsbyNode["createSchemaCustomization"] 
   createTypes(`
     type Mdx implements Node {
       frontmatter: Frontmatter
+      fields: MdxFields
+    }
+    type MdxFields {
+      lang: String
     }
     type Frontmatter {
       title: String!
