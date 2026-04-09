@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunkwiggleji_github_io=self.webpackChunkwiggleji_github_io||[]).push([[3009],{5390:function(e,i,t){t.d(i,{createArchitectureServices:function(){return u.S}});var u=t(5530);t(3167)}}]);

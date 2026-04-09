@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunkwiggleji_github_io=self.webpackChunkwiggleji_github_io||[]).push([[1226],{1226:function(e,i,u){u.d(i,{createInfoServices:function(){return n.v}});var n=u(3954);u(3167)}}]);

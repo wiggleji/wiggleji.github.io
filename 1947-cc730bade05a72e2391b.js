@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunkwiggleji_github_io=self.webpackChunkwiggleji_github_io||[]).push([[1947],{1947:function(e,i,u){u.d(i,{createWardleyServices:function(){return t.J}});var t=u(2295);u(3167)}}]);
