@@ -73,7 +73,7 @@ export const createPages: GatsbyNode["createPages"] = async ({
     }
 
     createPage({
-      path: `/${lang}/blog/${slug}/`,
+      path: `/blog/${slug}/`,
       component: `${blogPostTemplate}?__contentFilePath=${node.internal.contentFilePath}`,
       context: {
         id: node.id,
@@ -88,7 +88,7 @@ export const createPages: GatsbyNode["createPages"] = async ({
     tagsByLang[lang].forEach((tag) => {
       const tagSlug = tag.toLowerCase().replace(/\s+/g, "-");
       createPage({
-        path: `/${lang}/tags/${tagSlug}/`,
+        path: `/tags/${tagSlug}/`,
         component: tagTemplate,
         context: {
           tag: tag,
@@ -101,7 +101,7 @@ export const createPages: GatsbyNode["createPages"] = async ({
     categoriesByLang[lang].forEach((category) => {
       const categorySlug = category.toLowerCase().replace(/\s+/g, "-");
       createPage({
-        path: `/${lang}/categories/${categorySlug}/`,
+        path: `/categories/${categorySlug}/`,
         component: categoryTemplate,
         context: {
           category: category,
