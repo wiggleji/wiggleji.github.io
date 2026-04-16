@@ -18,11 +18,13 @@ description: "같은 결과를 만드는 두 가지 Spring Batch Step 작성법 
 - **Tasklet** — `execute()` 한 번으로 끝나는 단일 작업 단위 방식
 - **두 변형의 운영성 비교 + wall-time 실측** — 1k → 300k 시드에서 어떻게 다르고, 왜 격차가 수렴하는가
 
-
 # 왜 작성하는가
 
 <div align="center">
-    <img src="/images/20260416_tasklet_vs_chunk/spring_batch_overview.svg" width="640" />
+  <img
+    src="/images/20260416_tasklet_vs_chunk/spring_batch_overview.svg"
+    width="640"
+  />
 </div>
 
 Spring Batch 에는 대규모 데이터 처리(TOP-100 적재) 를 만드는 두 가지 길이 있다.<br />
@@ -35,10 +37,16 @@ Spring Batch 에는 대규모 데이터 처리(TOP-100 적재) 를 만드는 두
 이 글은 두 변형을 같은 산출물(주간 랭킹) 위에서 직접 구현하고 1k / 5k / 10k / 100k / 300k 시드로 실측한 결과 위에서 풀어쓴다.<br />
 **"빠르다"** 가 **"좋다"** 와 같지 않은 이유, 그리고 같다고 착각하기 쉬운 그 미묘한 지점들을 정리한다.
 
-
 <div align="center">
-    <img src="https://i.namu.wiki/i/P6WD4pAKMBOJ6MZ82EiWxs1_4SSwJuecR_9CSLPZIRoKvPxrZRtSFuikhXdDtEBuAJlmzIbsBZ4zUzXx4piC5Q.webp?r=620" width="500" />
-    <p><em>미안하다 이거 보여주려고 어그로끌었다.. Tasklet Batch 싸움수준 ㄹㅇ실화냐?</em></p>
+  <img
+    src="https://i.namu.wiki/i/P6WD4pAKMBOJ6MZ82EiWxs1_4SSwJuecR_9CSLPZIRoKvPxrZRtSFuikhXdDtEBuAJlmzIbsBZ4zUzXx4piC5Q.webp?r=620"
+    width="500"
+  />
+  <p>
+    <em>
+      미안하다 이거 보여주려고 어그로끌었다.. Tasklet Chunk 싸움수준 ㄹㅇ실화냐?
+    </em>
+  </p>
 </div>
 
 ---
@@ -72,13 +80,13 @@ Spring Batch 에는 대규모 데이터 처리(TOP-100 적재) 를 만드는 두
 
 배치의 자리를 노리는 현대적 대안들은 여럿 있다. 각자 강점도 있고 한계도 있다.
 
-| 대안 | 핵심 아이디어 | 강점 | 한계 |
-|---|---|---|---|
-| **Streaming (Kafka Streams, Flink)** | 이벤트 발생 즉시 누적 갱신 | 수 초 latency, near-real-time 집계 | 정확성 보장이 까다로움 (exactly-once, late event, watermark), 운영 복잡 |
-| **CDC (Debezium 등) + Materialized View** | DB 변경 로그를 스트림으로 받아 derived table 갱신 | 원본 DB 부하 없이 read-side 분리 | 인프라 추가, 스키마 변경 전파 비용 |
-| **Serverless (Lambda + EventBridge / Cloud Scheduler)** | 트리거 기반 함수 실행 | 인프라 관리 거의 0, 비용 사용량 비례 | cold start, 장시간 작업 부적합 (15분 limit 등) |
-| **OLAP DB 의 Materialized View 자동 refresh** | DB 가 직접 derived view 를 갱신 | 별도 코드 거의 없음 | DB 종속, refresh 정책 제한적 |
-| **Incremental processing (dbt 등)** | 마지막 처리 시점 이후 변경분만 재계산 | 큰 데이터셋에서 비용 절감 | 모델링·테스트 인프라 별도 필요 |
+| 대안                                                    | 핵심 아이디어                                     | 강점                                 | 한계                                                                    |
+| ------------------------------------------------------- | ------------------------------------------------- | ------------------------------------ | ----------------------------------------------------------------------- |
+| **Streaming (Kafka Streams, Flink)**                    | 이벤트 발생 즉시 누적 갱신                        | 수 초 latency, near-real-time 집계   | 정확성 보장이 까다로움 (exactly-once, late event, watermark), 운영 복잡 |
+| **CDC (Debezium 등) + Materialized View**               | DB 변경 로그를 스트림으로 받아 derived table 갱신 | 원본 DB 부하 없이 read-side 분리     | 인프라 추가, 스키마 변경 전파 비용                                      |
+| **Serverless (Lambda + EventBridge / Cloud Scheduler)** | 트리거 기반 함수 실행                             | 인프라 관리 거의 0, 비용 사용량 비례 | cold start, 장시간 작업 부적합 (15분 limit 등)                          |
+| **OLAP DB 의 Materialized View 자동 refresh**           | DB 가 직접 derived view 를 갱신                   | 별도 코드 거의 없음                  | DB 종속, refresh 정책 제한적                                            |
+| **Incremental processing (dbt 등)**                     | 마지막 처리 시점 이후 변경분만 재계산             | 큰 데이터셋에서 비용 절감            | 모델링·테스트 인프라 별도 필요                                          |
 
 이들 중 우리 도메인 (커머스 랭킹) 에 가장 가까운 후보는 **streaming** 이다. 실제로 일간 (DAILY) 랭킹은 이미 streaming 구조 — Kafka 이벤트가 들어올 때마다 Redis ZSET 에 `ZINCRBY` 하는 방식 — 로 동작하고 있다.
 
@@ -106,16 +114,19 @@ Spring Batch 에는 대규모 데이터 처리(TOP-100 적재) 를 만드는 두
 Spring Batch 는 이 모두를 **메타테이블 5개** 로 표준화해서 책임진다.
 
 <div align="center">
-    <img src="/images/20260416_tasklet_vs_chunk/batch_meta_tables.svg" width="720" />
+  <img
+    src="/images/20260416_tasklet_vs_chunk/batch_meta_tables.svg"
+    width="720"
+  />
 </div>
 
-| 테이블 | 책임 |
-|---|---|
-| `BATCH_JOB_INSTANCE` | "어떤 Job 을 어떤 파라미터로 돌렸는가" — `job_name + job_key(파라미터 해시)` 로 unique |
-| `BATCH_JOB_EXECUTION` | "그 instance 가 N번 실행될 수 있다" — 매 실행마다 row 1개, status/start_time/end_time |
-| `BATCH_STEP_EXECUTION` | "각 step 의 진행 상황과 카운트" — read_count / write_count / commit_count / rollback_count |
-| `BATCH_JOB_EXECUTION_CONTEXT` | Job 레벨의 중간 상태 (key-value blob) |
-| `BATCH_STEP_EXECUTION_CONTEXT` | Step 레벨의 중간 상태 — Reader 의 마지막 위치 등 재시작 정보가 여기 들어감 |
+| 테이블                         | 책임                                                                                       |
+| ------------------------------ | ------------------------------------------------------------------------------------------ |
+| `BATCH_JOB_INSTANCE`           | "어떤 Job 을 어떤 파라미터로 돌렸는가" — `job_name + job_key(파라미터 해시)` 로 unique     |
+| `BATCH_JOB_EXECUTION`          | "그 instance 가 N번 실행될 수 있다" — 매 실행마다 row 1개, status/start_time/end_time      |
+| `BATCH_STEP_EXECUTION`         | "각 step 의 진행 상황과 카운트" — read_count / write_count / commit_count / rollback_count |
+| `BATCH_JOB_EXECUTION_CONTEXT`  | Job 레벨의 중간 상태 (key-value blob)                                                      |
+| `BATCH_STEP_EXECUTION_CONTEXT` | Step 레벨의 중간 상태 — Reader 의 마지막 위치 등 재시작 정보가 여기 들어감                 |
 
 **이게 왜 중요한가?**
 
@@ -189,7 +200,6 @@ mv_product_rank_weekly  (period_key='2026-W16' 기준 정확히 100 row)
 - **Chunk 방식**: 2-step (clear → aggregate). aggregate step 이 Reader/Processor/Writer 파이프라인을 25개씩 4번 돈다.
 - **Tasklet 방식**: 1-step. 한 메서드 안에서 DELETE 한 번 + INSERT…SELECT 한 번으로 끝.
 
-
 ## 1. Step 작성법 ① — Chunk-Oriented Processing
 
 Chunk-Oriented Step 의 골격은 정해져 있다. **Reader → Processor → Writer** 의 3단계 파이프라인을 **chunk 크기만큼 반복** 한다.
@@ -225,9 +235,11 @@ read() ──┘
 주간 랭킹 작업을 Chunk 방식으로 짜면 자연스럽게 **2-step** 이 된다.
 
 **Step 1 — clear** (Tasklet 으로 작성)
+
 - "같은 `period_key` 의 기존 row 를 DELETE" 한 번. 이건 chunk 로 쪼갤 게 없는 단순 작업이라 Tasklet 으로.
 
 **Step 2 — aggregate** (진짜 Chunk)
+
 - **Reader**: `product_metrics` 에서 점수 계산 + 정렬 + 1~100등 번호 매김 + 100건만 cut 한 결과를 한 행씩 읽음. SQL 한 발로 표현하면:
   ```sql
   SELECT product_id,
@@ -284,7 +296,6 @@ sequenceDiagram
     Job-->>Launcher: COMPLETED
 ```
 
-
 ## 2. Step 작성법 ② — Tasklet
 
 Tasklet 의 골격은 훨씬 단순하다. **`execute()` 한 번이면 끝**.
@@ -308,11 +319,13 @@ execute(contribution, ctx) → RepeatStatus
 같은 주간 랭킹 작업을 Tasklet 으로 짜면 step 이 **단 1개** 다. 그 안에서 두 SQL 을 차례로 던진다.
 
 **SQL ① DELETE** — 같은 period_key 의 기존 row 정리
+
 ```sql
 DELETE FROM mv_product_rank_weekly WHERE period_key = '2026-W16'
 ```
 
 **SQL ② INSERT … SELECT** — 점수 계산 + 정렬 + 번호 매김 + TOP 100 cut + 적재를 한 발로
+
 ```sql
 INSERT INTO mv_product_rank_weekly
     (product_id, rank_no, score, view_count, like_count, sales_count, sales_amount,
@@ -356,40 +369,42 @@ sequenceDiagram
     Tasklet-->>Launcher: FINISHED
 ```
 
-
 ## 3. 같은 결과, 다른 길
 
 두 변형은 **bit-for-bit 같은 TOP-100 ID 리스트** 를 생성한다 (E2E 테스트로 검증). 그렇다면 차이는 어디에 있는가?
 
 <div align="center">
-    <img src="/images/20260416_tasklet_vs_chunk/chunk_vs_tasklet_pipeline.svg" width="720" />
+  <img
+    src="/images/20260416_tasklet_vs_chunk/chunk_vs_tasklet_pipeline.svg"
+    width="720"
+  />
 </div>
 
 **핵심은 누가 어디까지 일을 하느냐다.**
 
-| 단계 | Chunk-Oriented | Tasklet |
-|---|---|---|
-| **데이터 선택 (SELECT)** | DB | DB |
-| **점수 계산** | DB | DB |
-| **정렬·rank 부여** | DB (ROW_NUMBER + ORDER BY) | DB (ROW_NUMBER + ORDER BY) |
-| **JVM 으로 row 전송** | 100 rows × Network roundtrip | **없음** |
-| **JVM 객체 매핑** | RowMapper × 100 + Processor × 100 | 없음 |
-| **INSERT** | JpaItemWriter × 4 chunks | DB 가 그 자리에서 INSERT |
-| **트랜잭션 경계** | Chunk × 4 + Clear × 1 = 총 5번 commit | 단일 1번 commit |
+| 단계                     | Chunk-Oriented                        | Tasklet                    |
+| ------------------------ | ------------------------------------- | -------------------------- |
+| **데이터 선택 (SELECT)** | DB                                    | DB                         |
+| **점수 계산**            | DB                                    | DB                         |
+| **정렬·rank 부여**       | DB (ROW_NUMBER + ORDER BY)            | DB (ROW_NUMBER + ORDER BY) |
+| **JVM 으로 row 전송**    | 100 rows × Network roundtrip          | **없음**                   |
+| **JVM 객체 매핑**        | RowMapper × 100 + Processor × 100     | 없음                       |
+| **INSERT**               | JpaItemWriter × 4 chunks              | DB 가 그 자리에서 INSERT   |
+| **트랜잭션 경계**        | Chunk × 4 + Clear × 1 = 총 5번 commit | 단일 1번 commit            |
 
 같은 결과를 만들지만 **연산이 일어나는 위치 (DB vs JVM) 와 트랜잭션 경계의 수** 가 다르다. 이게 운영 모델과 wall-time 에 동시에 영향을 준다.
 
 ### 운영 모델 비교
 
-| 기준 | Chunk-Oriented | Tasklet |
-|---|---|---|
-| **회복 단위** | Chunk 단위 (실패 chunk 만 retry / skip 가능) | Step 전체 (단일 TX 라 모 아니면 도) |
-| **중간 상태 관측** | step metrics 에 read/write/commit count 가 chunk 단위로 누적 | "실행 중" 외에 진행률을 보기 어려움 |
-| **메모리 사용** | chunk size 에 비례 (일정) | DB 가 처리하므로 JVM 측은 거의 0 |
-| **DB 락 보유 시간** | chunk 단위로 짧게 끊김 | step 전체가 한 트랜잭션 — 데이터셋 클수록 길어짐 |
-| **코드 구조** | Reader/Processor/Writer 분리 — 책임이 명확 | SQL 한 덩어리 — 단순하지만 비즈니스 로직이 SQL 안으로 들어감 |
-| **테스트성** | 각 컴포넌트를 독립 테스트 가능 | SQL 의존성이 강해 통합 테스트가 사실상 강제됨 |
-| **확장성** | skip/retry policy, async/parallel chunk 등 Spring Batch 확장 지점 풍부 | 기능 확장 = SQL 재작성 |
+| 기준                | Chunk-Oriented                                                         | Tasklet                                                      |
+| ------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------ |
+| **회복 단위**       | Chunk 단위 (실패 chunk 만 retry / skip 가능)                           | Step 전체 (단일 TX 라 모 아니면 도)                          |
+| **중간 상태 관측**  | step metrics 에 read/write/commit count 가 chunk 단위로 누적           | "실행 중" 외에 진행률을 보기 어려움                          |
+| **메모리 사용**     | chunk size 에 비례 (일정)                                              | DB 가 처리하므로 JVM 측은 거의 0                             |
+| **DB 락 보유 시간** | chunk 단위로 짧게 끊김                                                 | step 전체가 한 트랜잭션 — 데이터셋 클수록 길어짐             |
+| **코드 구조**       | Reader/Processor/Writer 분리 — 책임이 명확                             | SQL 한 덩어리 — 단순하지만 비즈니스 로직이 SQL 안으로 들어감 |
+| **테스트성**        | 각 컴포넌트를 독립 테스트 가능                                         | SQL 의존성이 강해 통합 테스트가 사실상 강제됨                |
+| **확장성**          | skip/retry policy, async/parallel chunk 등 Spring Batch 확장 지점 풍부 | 기능 확장 = SQL 재작성                                       |
 
 가장 큰 차이는 **회복 모델**. 운영 환경에서 DB connection drop / OOM / lock timeout 같은 일시적 실패가 났을 때 — Chunk 변형은 "1만 건 처리했는데 1.025만 건째에서 실패 → 1.025만 건째부터 다시" 가 가능하지만, Tasklet 은 **"실패 → 처음부터 모든 걸 다시"** 가 강제된다.
 
@@ -400,7 +415,6 @@ sequenceDiagram
 3. **"이건 한 트랜잭션으로 묶여야 한다"** 는 강한 제약 — chunk 로 쪼개면 부분 적용 위험이 있는 작업.
 
 우리 예시의 `clear step` 도 사실 Tasklet 이다 — "DELETE WHERE period_key=?" 하나뿐이라 굳이 chunk 구조를 강제할 이유가 없다. **Job 안에서 작업의 성격에 따라 두 방식을 자유롭게 섞는 게 정석.**
-
 
 ## 4. 실측 — Wall time 비교
 
@@ -418,18 +432,21 @@ sequenceDiagram
 
 ### Wall time 표
 
-| Seed | Chunk (ms) | Tasklet (ms) | Tasklet 우위 |
-|------:|-----------:|-------------:|:-----------:|
-| 1,000   | 171 | 34  | **5.0×** |
-| 5,000   | 140 | 37  | **3.8×** |
-| 10,000  | 103 | 42  | **2.5×** |
-| 100,000 | 206 | 143 | **1.4×** |
-| 300,000 | 579 | 501 | **1.16×** |
+|    Seed | Chunk (ms) | Tasklet (ms) | Tasklet 우위 |
+| ------: | ---------: | -----------: | :----------: |
+|   1,000 |        171 |           34 |   **5.0×**   |
+|   5,000 |        140 |           37 |   **3.8×**   |
+|  10,000 |        103 |           42 |   **2.5×**   |
+| 100,000 |        206 |          143 |   **1.4×**   |
+| 300,000 |        579 |          501 |  **1.16×**   |
 
 ### 그래프
 
 <div align="center">
-    <img src="/images/20260416_tasklet_vs_chunk/wall_time_chart.svg" width="680" />
+  <img
+    src="/images/20260416_tasklet_vs_chunk/wall_time_chart.svg"
+    width="680"
+  />
 </div>
 
 위 차트의 핵심 발견:
@@ -462,7 +479,6 @@ Chunk 는 base cost (Reader 열고 Processor/Writer 파이프라인 세팅) 가 
 2. **MySQL 이 LIMIT push-down + filesort 를 잘 처리** — `ORDER BY ... LIMIT 100` 을 priority queue 로 최적화.
 
 만약 결과 cardinality 도 데이터셋과 함께 커지는 작업 (예: 전체 row 를 그대로 적재) 이라면 절대값과 격차 모두 다른 양상이 나올 것이다.
-
 
 ## 5. 정합성 — 두 변형이 "정말로" 같은 결과를 만드는가
 
@@ -512,13 +528,13 @@ MySQL Double: 1098.6000000000001
 
 ## 무엇을 골라야 하는가
 
-| 상황 | 추천 |
-|---|---|
-| DELETE 한 번, FILE 옮기기, 단순 SQL 한 발 | **Tasklet** — 강제된 구조가 오히려 부담 |
-| 결과 cardinality 가 작고 (TOP-N), 데이터셋도 작은 (~10k) 단발 작업 | **Tasklet** — 5× 차이는 실질적 |
-| 수십만~수백만 row 처리, 운영 환경에서 안정성·관측성 필요 | **Chunk** — 격차는 거의 없는데 회복 모델 + step metrics 의 가치가 크다 |
+| 상황                                                                | 추천                                                                    |
+| ------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| DELETE 한 번, FILE 옮기기, 단순 SQL 한 발                           | **Tasklet** — 강제된 구조가 오히려 부담                                 |
+| 결과 cardinality 가 작고 (TOP-N), 데이터셋도 작은 (~10k) 단발 작업  | **Tasklet** — 5× 차이는 실질적                                          |
+| 수십만~수백만 row 처리, 운영 환경에서 안정성·관측성 필요            | **Chunk** — 격차는 거의 없는데 회복 모델 + step metrics 의 가치가 크다  |
 | Job 안에서 단계별 책임이 다른 작업 (예: clear → aggregate → notify) | **두 방식을 같은 Job 안에 섞기** — clear 는 Tasklet, aggregate 는 Chunk |
-| 중간 진행률·재시작·skip/retry 가 운영 SLA 에 들어감 | **Chunk** — Spring Batch 의 기본 확장 지점이 모두 chunk 위에 있다 |
+| 중간 진행률·재시작·skip/retry 가 운영 SLA 에 들어감                 | **Chunk** — Spring Batch 의 기본 확장 지점이 모두 chunk 위에 있다       |
 
 ## 한 가지 더 — 측정해 본 것의 무게
 
