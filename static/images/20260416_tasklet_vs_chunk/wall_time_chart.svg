@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 760 380" xmlns="http://www.w3.org/2000/svg" font-family="Fira Code, monospace">
+  <rect width="760" height="380" fill="#fefefe"/>
+
+  <text x="380" y="26" text-anchor="middle" fill="#333" font-size="14" font-weight="700">Chunk vs Tasklet — Wall time (ms) by seed size</text>
+  <text x="380" y="44" text-anchor="middle" fill="#aaa" font-size="10">TestContainers MySQL · TOP_N=100 · chunk size=25 · seed=42L · 각 1회 측정</text>
+
+  <!-- Plot area: x=80~720, y=72~310 -->
+  <!-- y axis: 0~600 ms -->
+  <!-- y grid -->
+  <line x1="80"  y1="72"  x2="80"  y2="310" stroke="#999" stroke-width="1"/>
+  <line x1="80"  y1="310" x2="720" y2="310" stroke="#999" stroke-width="1"/>
+
+  <!-- y ticks: 0,100,200,300,400,500,600 -->
+  <g font-size="9" fill="#666" text-anchor="end">
+    <line x1="76" y1="310" x2="80" y2="310" stroke="#999"/><text x="72" y="313">0</text>
+    <line x1="76" y1="270" x2="80" y2="270" stroke="#999"/><text x="72" y="273">100</text>
+    <line x1="76" y1="231" x2="80" y2="231" stroke="#999"/><text x="72" y="234">200</text>
+    <line x1="76" y1="191" x2="80" y2="191" stroke="#999"/><text x="72" y="194">300</text>
+    <line x1="76" y1="152" x2="80" y2="152" stroke="#999"/><text x="72" y="155">400</text>
+    <line x1="76" y1="112" x2="80" y2="112" stroke="#999"/><text x="72" y="115">500</text>
+    <line x1="76" y1="72"  x2="80" y2="72"  stroke="#999"/><text x="72" y="75">600</text>
+  </g>
+  <text x="32" y="190" font-size="10" fill="#444" transform="rotate(-90 32 190)">Wall time (ms)</text>
+
+  <!-- horizontal grid lines (light) -->
+  <g stroke="#eee" stroke-width="1">
+    <line x1="80" y1="72"  x2="720" y2="72"/>
+    <line x1="80" y1="112" x2="720" y2="112"/>
+    <line x1="80" y1="152" x2="720" y2="152"/>
+    <line x1="80" y1="191" x2="720" y2="191"/>
+    <line x1="80" y1="231" x2="720" y2="231"/>
+    <line x1="80" y1="270" x2="720" y2="270"/>
+  </g>
+
+  <!-- x ticks: 1k, 5k, 10k, 100k, 300k at evenly spaced positions -->
+  <!-- positions: 140, 260, 380, 500, 620 -->
+  <g font-size="10" fill="#444" text-anchor="middle">
+    <line x1="140" y1="310" x2="140" y2="314" stroke="#999"/>
+    <text x="140" y="328">1k</text>
+    <line x1="260" y1="310" x2="260" y2="314" stroke="#999"/>
+    <text x="260" y="328">5k</text>
+    <line x1="380" y1="310" x2="380" y2="314" stroke="#999"/>
+    <text x="380" y="328">10k</text>
+    <line x1="500" y1="310" x2="500" y2="314" stroke="#999"/>
+    <text x="500" y="328">100k</text>
+    <line x1="620" y1="310" x2="620" y2="314" stroke="#999"/>
+    <text x="620" y="328">300k</text>
+  </g>
+  <text x="380" y="350" font-size="10" fill="#444" text-anchor="middle">seed size (count of product_metrics rows)</text>
+
+  <!-- Convert ms → y: y = 310 - ms * 0.397 (approx 600ms over 238px) -->
+  <!-- Chunk: 171, 140, 103, 206, 579 -->
+  <!--   y: 310 - 171*0.397 = 242.1
+          310 - 140*0.397 = 254.4
+          310 - 103*0.397 = 269.1
+          310 - 206*0.397 = 228.2
+          310 - 579*0.397 = 80.1 -->
+  <polyline points="140,242 260,254 380,269 500,228 620,80" fill="none" stroke="#1f6f9f" stroke-width="2.4"/>
+  <g fill="#1f6f9f">
+    <circle cx="140" cy="242" r="4"/>
+    <circle cx="260" cy="254" r="4"/>
+    <circle cx="380" cy="269" r="4"/>
+    <circle cx="500" cy="228" r="4"/>
+    <circle cx="620" cy="80" r="4"/>
+  </g>
+  <g font-size="9" fill="#1f6f9f" font-weight="600">
+    <text x="140" y="234" text-anchor="middle">171</text>
+    <text x="260" y="246" text-anchor="middle">140</text>
+    <text x="380" y="261" text-anchor="middle">103</text>
+    <text x="500" y="220" text-anchor="middle">206</text>
+    <text x="620" y="72" text-anchor="middle">579</text>
+  </g>
+
+  <!-- Tasklet: 34, 37, 42, 143, 501 -->
+  <!--   y: 310 - 34*0.397  = 296.5
+          310 - 37*0.397  = 295.3
+          310 - 42*0.397  = 293.3
+          310 - 143*0.397 = 253.2
+          310 - 501*0.397 = 111.1 -->
+  <polyline points="140,297 260,295 380,293 500,253 620,111" fill="none" stroke="#c0670d" stroke-width="2.4"/>
+  <g fill="#c0670d">
+    <circle cx="140" cy="297" r="4"/>
+    <circle cx="260" cy="295" r="4"/>
+    <circle cx="380" cy="293" r="4"/>
+    <circle cx="500" cy="253" r="4"/>
+    <circle cx="620" cy="111" r="4"/>
+  </g>
+  <g font-size="9" fill="#c0670d" font-weight="600">
+    <text x="140" y="289" text-anchor="middle">34</text>
+    <text x="260" y="287" text-anchor="middle">37</text>
+    <text x="380" y="285" text-anchor="middle">42</text>
+    <text x="500" y="245" text-anchor="middle">143</text>
+    <text x="620" y="103" text-anchor="middle">501</text>
+  </g>
+
+  <!-- Legend -->
+  <g transform="translate(540, 60)">
+    <rect x="0" y="0" width="180" height="46" rx="6" fill="#fff" stroke="#ccc"/>
+    <line x1="14" y1="16" x2="40" y2="16" stroke="#1f6f9f" stroke-width="2.4"/>
+    <circle cx="27" cy="16" r="3" fill="#1f6f9f"/>
+    <text x="48" y="20" font-size="10" fill="#333">Chunk-Oriented</text>
+    <line x1="14" y1="34" x2="40" y2="34" stroke="#c0670d" stroke-width="2.4"/>
+    <circle cx="27" cy="34" r="3" fill="#c0670d"/>
+    <text x="48" y="38" font-size="10" fill="#333">Tasklet (단일 SQL)</text>
+  </g>
+</svg>

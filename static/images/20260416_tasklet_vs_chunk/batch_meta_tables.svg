@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 820 440" xmlns="http://www.w3.org/2000/svg" font-family="Fira Code, monospace">
+  <rect width="820" height="440" fill="#fefefe"/>
+
+  <text x="410" y="26" text-anchor="middle" fill="#333" font-size="14" font-weight="700">Spring Batch 메타테이블 — Job 의 모든 실행 이력은 DB 에 남는다</text>
+  <text x="410" y="44" text-anchor="middle" fill="#aaa" font-size="10">JobInstance ⊃ JobExecution ⊃ StepExecution · 재실행 / 중단 복원의 근거</text>
+
+  <!-- BATCH_JOB_INSTANCE -->
+  <rect x="40" y="80" width="220" height="120" rx="8" fill="#eef4ff" stroke="#3b6ec1" stroke-width="1.5"/>
+  <text x="150" y="102" text-anchor="middle" fill="#3b6ec1" font-size="11" font-weight="700">BATCH_JOB_INSTANCE</text>
+  <text x="150" y="118" text-anchor="middle" fill="#888" font-size="8">"이 Job 을 어떤 파라미터로 돌렸는가"</text>
+  <line x1="56" y1="128" x2="244" y2="128" stroke="#3b6ec1" stroke-width="0.8"/>
+  <text x="56" y="144" fill="#333" font-size="9">job_instance_id (PK)</text>
+  <text x="56" y="158" fill="#333" font-size="9">job_name</text>
+  <text x="56" y="172" fill="#333" font-size="9">job_key (params hash)</text>
+  <text x="56" y="190" fill="#999" font-size="8">unique(job_name, job_key) → 같은 파라미터 재실행 차단</text>
+
+  <!-- BATCH_JOB_EXECUTION -->
+  <rect x="300" y="80" width="220" height="170" rx="8" fill="#eef4ff" stroke="#3b6ec1" stroke-width="1.5"/>
+  <text x="410" y="102" text-anchor="middle" fill="#3b6ec1" font-size="11" font-weight="700">BATCH_JOB_EXECUTION</text>
+  <text x="410" y="118" text-anchor="middle" fill="#888" font-size="8">"한 instance 가 N번 실행될 수 있음"</text>
+  <line x1="316" y1="128" x2="504" y2="128" stroke="#3b6ec1" stroke-width="0.8"/>
+  <text x="316" y="144" fill="#333" font-size="9">job_execution_id (PK)</text>
+  <text x="316" y="158" fill="#333" font-size="9">job_instance_id (FK)</text>
+  <text x="316" y="172" fill="#333" font-size="9">status (STARTED/COMPLETED/FAILED)</text>
+  <text x="316" y="186" fill="#333" font-size="9">exit_code, exit_message</text>
+  <text x="316" y="200" fill="#333" font-size="9">start_time, end_time</text>
+  <text x="316" y="218" fill="#999" font-size="8">FAILED → 같은 instance 로 재실행 시</text>
+  <text x="316" y="230" fill="#999" font-size="8">새 execution row 가 생기며 이어서 진행</text>
+
+  <!-- BATCH_STEP_EXECUTION -->
+  <rect x="560" y="80" width="220" height="190" rx="8" fill="#eef4ff" stroke="#3b6ec1" stroke-width="1.5"/>
+  <text x="670" y="102" text-anchor="middle" fill="#3b6ec1" font-size="11" font-weight="700">BATCH_STEP_EXECUTION</text>
+  <text x="670" y="118" text-anchor="middle" fill="#888" font-size="8">"각 step 의 진행 상황과 카운트"</text>
+  <line x1="576" y1="128" x2="764" y2="128" stroke="#3b6ec1" stroke-width="0.8"/>
+  <text x="576" y="144" fill="#333" font-size="9">step_execution_id (PK)</text>
+  <text x="576" y="158" fill="#333" font-size="9">job_execution_id (FK)</text>
+  <text x="576" y="172" fill="#333" font-size="9">step_name</text>
+  <text x="576" y="186" fill="#333" font-size="9">status, exit_code</text>
+  <text x="576" y="200" fill="#333" font-size="9">read_count, write_count</text>
+  <text x="576" y="214" fill="#333" font-size="9">commit_count, rollback_count</text>
+  <text x="576" y="228" fill="#333" font-size="9">filter_count, skip_count</text>
+  <text x="576" y="248" fill="#999" font-size="8">"chunk 가 몇 번 쪼개져서 몇 번 커밋됐는가"</text>
+
+  <!-- arrows -->
+  <line x1="260" y1="140" x2="298" y2="140" stroke="#3b6ec1" stroke-width="1.5" marker-end="url(#a2)"/>
+  <text x="280" y="132" text-anchor="middle" fill="#3b6ec1" font-size="9">1 : N</text>
+  <line x1="520" y1="160" x2="558" y2="160" stroke="#3b6ec1" stroke-width="1.5" marker-end="url(#a2)"/>
+  <text x="540" y="152" text-anchor="middle" fill="#3b6ec1" font-size="9">1 : N</text>
+
+  <!-- ExecutionContext rows -->
+  <rect x="40" y="290" width="360" height="130" rx="8" fill="#fff8e6" stroke="#c08a00" stroke-width="1.5"/>
+  <text x="220" y="312" text-anchor="middle" fill="#c08a00" font-size="11" font-weight="700">BATCH_JOB_EXECUTION_CONTEXT</text>
+  <text x="220" y="328" text-anchor="middle" fill="#888" font-size="8">실행 중간 상태 (key-value blob)</text>
+  <text x="58" y="350" fill="#333" font-size="9">job_execution_id (PK, FK)</text>
+  <text x="58" y="364" fill="#333" font-size="9">short_context, serialized_context</text>
+  <text x="58" y="386" fill="#999" font-size="8">예) ItemReader 의 last read position,</text>
+  <text x="58" y="400" fill="#999" font-size="8">    Job 레벨에서 공유할 키-값</text>
+
+  <rect x="420" y="290" width="360" height="130" rx="8" fill="#fff8e6" stroke="#c08a00" stroke-width="1.5"/>
+  <text x="600" y="312" text-anchor="middle" fill="#c08a00" font-size="11" font-weight="700">BATCH_STEP_EXECUTION_CONTEXT</text>
+  <text x="600" y="328" text-anchor="middle" fill="#888" font-size="8">step 단위 중간 상태</text>
+  <text x="438" y="350" fill="#333" font-size="9">step_execution_id (PK, FK)</text>
+  <text x="438" y="364" fill="#333" font-size="9">short_context, serialized_context</text>
+  <text x="438" y="386" fill="#999" font-size="8">중단 후 재시작 시 reader/writer 의</text>
+  <text x="438" y="400" fill="#999" font-size="8">진행 위치를 여기서 복원한다</text>
+
+  <defs>
+    <marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#3b6ec1"/>
+    </marker>
+  </defs>
+</svg>

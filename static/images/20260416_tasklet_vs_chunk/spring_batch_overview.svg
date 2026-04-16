@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 760 360" xmlns="http://www.w3.org/2000/svg" font-family="Fira Code, monospace">
+  <rect width="760" height="360" fill="#fefefe"/>
+
+  <!-- Title -->
+  <text x="380" y="26" text-anchor="middle" fill="#333" font-size="14" font-weight="700">Spring Batch — Job · Step · 두 갈래의 처리 방식</text>
+  <text x="380" y="44" text-anchor="middle" fill="#aaa" font-size="10">Job 안에 Step 들이 있고, Step 은 "Chunk-Oriented" 또는 "Tasklet" 둘 중 하나로 구성된다</text>
+
+  <!-- Job container -->
+  <rect x="40" y="66" width="680" height="270" rx="10" fill="#fafafa" stroke="#888" stroke-width="1.5" stroke-dasharray="0"/>
+  <text x="60" y="86" fill="#444" font-size="11" font-weight="700">Job (weeklyRankingJob)</text>
+
+  <!-- Step 1: Chunk -->
+  <rect x="60" y="100" width="320" height="220" rx="8" fill="#eef6fb" stroke="#1f6f9f" stroke-width="1.5"/>
+  <text x="220" y="120" text-anchor="middle" fill="#1f6f9f" font-size="11" font-weight="700">Step (Chunk-Oriented)</text>
+  <text x="220" y="136" text-anchor="middle" fill="#1f6f9f" font-size="9">chunk size = 25 · 청크마다 TX commit</text>
+
+  <!-- Reader -->
+  <rect x="80" y="156" width="80" height="50" rx="6" fill="#fff" stroke="#1f6f9f" stroke-width="1.2"/>
+  <text x="120" y="180" text-anchor="middle" fill="#333" font-size="10" font-weight="600">Reader</text>
+  <text x="120" y="194" text-anchor="middle" fill="#888" font-size="8">read() → row</text>
+
+  <!-- arrow -->
+  <line x1="160" y1="181" x2="180" y2="181" stroke="#1f6f9f" stroke-width="1.5" marker-end="url(#arrow1)"/>
+
+  <!-- Processor -->
+  <rect x="180" y="156" width="80" height="50" rx="6" fill="#fff" stroke="#1f6f9f" stroke-width="1.2"/>
+  <text x="220" y="180" text-anchor="middle" fill="#333" font-size="10" font-weight="600">Processor</text>
+  <text x="220" y="194" text-anchor="middle" fill="#888" font-size="8">row → entity</text>
+
+  <line x1="260" y1="181" x2="280" y2="181" stroke="#1f6f9f" stroke-width="1.5" marker-end="url(#arrow1)"/>
+
+  <!-- Writer -->
+  <rect x="280" y="156" width="80" height="50" rx="6" fill="#fff" stroke="#1f6f9f" stroke-width="1.2"/>
+  <text x="320" y="180" text-anchor="middle" fill="#333" font-size="10" font-weight="600">Writer</text>
+  <text x="320" y="194" text-anchor="middle" fill="#888" font-size="8">write(chunk)</text>
+
+  <!-- chunk loop indicator -->
+  <path d="M 100 230 Q 100 260 220 260 Q 340 260 340 230" stroke="#1f6f9f" stroke-width="1.4" fill="none" stroke-dasharray="4,3"/>
+  <text x="220" y="278" text-anchor="middle" fill="#1f6f9f" font-size="10" font-weight="600">반복 (read × N → process × N → write × N)</text>
+  <text x="220" y="294" text-anchor="middle" fill="#888" font-size="9">매 chunk 마다 별도 트랜잭션</text>
+  <text x="220" y="308" text-anchor="middle" fill="#888" font-size="9">실패 시 chunk 단위 retry / skip 가능</text>
+
+  <!-- Step 2: Tasklet -->
+  <rect x="400" y="100" width="300" height="220" rx="8" fill="#fff5ee" stroke="#c0670d" stroke-width="1.5"/>
+  <text x="550" y="120" text-anchor="middle" fill="#c0670d" font-size="11" font-weight="700">Step (Tasklet)</text>
+  <text x="550" y="136" text-anchor="middle" fill="#c0670d" font-size="9">단일 작업 단위 · 한 트랜잭션</text>
+
+  <!-- Tasklet box -->
+  <rect x="440" y="160" width="220" height="80" rx="8" fill="#fff" stroke="#c0670d" stroke-width="1.2"/>
+  <text x="550" y="186" text-anchor="middle" fill="#333" font-size="11" font-weight="700">execute(contribution, ctx)</text>
+  <text x="550" y="206" text-anchor="middle" fill="#666" font-size="9">→ INSERT … SELECT ROW_NUMBER() …</text>
+  <text x="550" y="222" text-anchor="middle" fill="#666" font-size="9">→ RepeatStatus.FINISHED</text>
+
+  <text x="550" y="266" text-anchor="middle" fill="#c0670d" font-size="10" font-weight="600">단 1회 실행 (or 명시적 반복)</text>
+  <text x="550" y="284" text-anchor="middle" fill="#888" font-size="9">DB roundtrip 1 회 — JVM 객체 거의 없음</text>
+  <text x="550" y="300" text-anchor="middle" fill="#888" font-size="9">실패 시 Step 전체 재실행</text>
+
+  <!-- arrow markers -->
+  <defs>
+    <marker id="arrow1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#1f6f9f"/>
+    </marker>
+  </defs>
+</svg>

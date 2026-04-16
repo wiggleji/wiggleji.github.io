@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 820 460" xmlns="http://www.w3.org/2000/svg" font-family="Fira Code, monospace">
+  <rect width="820" height="460" fill="#fefefe"/>
+
+  <text x="410" y="26" text-anchor="middle" fill="#333" font-size="14" font-weight="700">같은 결과, 다른 길 — Chunk 파이프라인 vs Tasklet 단일 SQL</text>
+  <text x="410" y="44" text-anchor="middle" fill="#aaa" font-size="10">"100 rows 적재" 라는 산출물은 같지만, 누가 일을 나눠 하느냐가 다르다</text>
+
+  <!-- ============ CHUNK lane (top) ============ -->
+  <rect x="30" y="68" width="760" height="170" rx="10" fill="#eef6fb" stroke="#1f6f9f" stroke-width="1.5"/>
+  <text x="50" y="88" fill="#1f6f9f" font-size="12" font-weight="700">Chunk-Oriented (chunk size = 25, TOP-N = 100 → 4 chunks)</text>
+  <text x="50" y="104" fill="#1f6f9f" font-size="9" opacity="0.85">JVM 이 read → process → write 를 청크 단위로 반복. 각 청크가 독립 트랜잭션.</text>
+
+  <!-- DB box -->
+  <rect x="60" y="130" width="80" height="80" rx="6" fill="#fff" stroke="#1f6f9f" stroke-width="1.2"/>
+  <text x="100" y="158" text-anchor="middle" fill="#333" font-size="10" font-weight="700">MySQL</text>
+  <text x="100" y="174" text-anchor="middle" fill="#888" font-size="8">product_metrics</text>
+  <text x="100" y="194" text-anchor="middle" fill="#888" font-size="8">SELECT … LIMIT 100</text>
+
+  <!-- 4 chunks -->
+  <g transform="translate(170, 130)">
+    <!-- Chunk 1 -->
+    <rect x="0" y="0" width="130" height="80" rx="6" fill="#fff" stroke="#1f6f9f" stroke-width="1.2"/>
+    <text x="65" y="20" text-anchor="middle" fill="#1f6f9f" font-size="10" font-weight="700">Chunk #1 (25)</text>
+    <text x="65" y="38" text-anchor="middle" fill="#666" font-size="8">read 25</text>
+    <text x="65" y="50" text-anchor="middle" fill="#666" font-size="8">process 25</text>
+    <text x="65" y="62" text-anchor="middle" fill="#666" font-size="8">write 25 + COMMIT</text>
+    <text x="65" y="76" text-anchor="middle" fill="#1f6f9f" font-size="8" font-weight="600">TX 1</text>
+  </g>
+  <g transform="translate(310, 130)">
+    <rect x="0" y="0" width="130" height="80" rx="6" fill="#fff" stroke="#1f6f9f" stroke-width="1.2"/>
+    <text x="65" y="20" text-anchor="middle" fill="#1f6f9f" font-size="10" font-weight="700">Chunk #2 (25)</text>
+    <text x="65" y="38" text-anchor="middle" fill="#666" font-size="8">read 25</text>
+    <text x="65" y="50" text-anchor="middle" fill="#666" font-size="8">process 25</text>
+    <text x="65" y="62" text-anchor="middle" fill="#666" font-size="8">write 25 + COMMIT</text>
+    <text x="65" y="76" text-anchor="middle" fill="#1f6f9f" font-size="8" font-weight="600">TX 2</text>
+  </g>
+  <g transform="translate(450, 130)">
+    <rect x="0" y="0" width="130" height="80" rx="6" fill="#fff" stroke="#1f6f9f" stroke-width="1.2"/>
+    <text x="65" y="20" text-anchor="middle" fill="#1f6f9f" font-size="10" font-weight="700">Chunk #3 (25)</text>
+    <text x="65" y="38" text-anchor="middle" fill="#666" font-size="8">read 25</text>
+    <text x="65" y="50" text-anchor="middle" fill="#666" font-size="8">process 25</text>
+    <text x="65" y="62" text-anchor="middle" fill="#666" font-size="8">write 25 + COMMIT</text>
+    <text x="65" y="76" text-anchor="middle" fill="#1f6f9f" font-size="8" font-weight="600">TX 3</text>
+  </g>
+  <g transform="translate(590, 130)">
+    <rect x="0" y="0" width="130" height="80" rx="6" fill="#fff" stroke="#1f6f9f" stroke-width="1.2"/>
+    <text x="65" y="20" text-anchor="middle" fill="#1f6f9f" font-size="10" font-weight="700">Chunk #4 (25)</text>
+    <text x="65" y="38" text-anchor="middle" fill="#666" font-size="8">read 25</text>
+    <text x="65" y="50" text-anchor="middle" fill="#666" font-size="8">process 25</text>
+    <text x="65" y="62" text-anchor="middle" fill="#666" font-size="8">write 25 + COMMIT</text>
+    <text x="65" y="76" text-anchor="middle" fill="#1f6f9f" font-size="8" font-weight="600">TX 4</text>
+  </g>
+
+  <!-- Connectors -->
+  <line x1="140" y1="170" x2="170" y2="170" stroke="#1f6f9f" stroke-width="1.5" marker-end="url(#a3)"/>
+  <line x1="300" y1="170" x2="310" y2="170" stroke="#1f6f9f" stroke-width="1.5" marker-end="url(#a3)"/>
+  <line x1="440" y1="170" x2="450" y2="170" stroke="#1f6f9f" stroke-width="1.5" marker-end="url(#a3)"/>
+  <line x1="580" y1="170" x2="590" y2="170" stroke="#1f6f9f" stroke-width="1.5" marker-end="url(#a3)"/>
+
+  <text x="410" y="226" text-anchor="middle" fill="#1f6f9f" font-size="9" font-weight="600">▲ Chunk 단위 회복 가능 · 중간 상태 관측 가능 · Reader/Processor/Writer 분리로 책임이 명확</text>
+
+  <!-- ============ TASKLET lane (bottom) ============ -->
+  <rect x="30" y="258" width="760" height="180" rx="10" fill="#fff5ee" stroke="#c0670d" stroke-width="1.5"/>
+  <text x="50" y="278" fill="#c0670d" font-size="12" font-weight="700">Tasklet (단일 SQL — INSERT … SELECT ROW_NUMBER() … LIMIT 100)</text>
+  <text x="50" y="294" fill="#c0670d" font-size="9" opacity="0.85">DB 가 정렬·번호매김·삽입을 통째로 처리. JVM ↔ DB roundtrip 1 회.</text>
+
+  <!-- Single tasklet shot -->
+  <rect x="60" y="320" width="100" height="90" rx="6" fill="#fff" stroke="#c0670d" stroke-width="1.2"/>
+  <text x="110" y="346" text-anchor="middle" fill="#333" font-size="10" font-weight="700">Tasklet</text>
+  <text x="110" y="362" text-anchor="middle" fill="#666" font-size="8">execute()</text>
+  <text x="110" y="378" text-anchor="middle" fill="#666" font-size="8">jdbcTemplate</text>
+  <text x="110" y="390" text-anchor="middle" fill="#666" font-size="8">.update(sql)</text>
+
+  <line x1="160" y1="365" x2="200" y2="365" stroke="#c0670d" stroke-width="1.8" marker-end="url(#a4)"/>
+  <text x="180" y="358" text-anchor="middle" fill="#c0670d" font-size="9" font-weight="600">1 SQL</text>
+
+  <!-- DB doing all the work -->
+  <rect x="200" y="320" width="560" height="90" rx="6" fill="#fff" stroke="#c0670d" stroke-width="1.2"/>
+  <text x="480" y="342" text-anchor="middle" fill="#333" font-size="10" font-weight="700">MySQL</text>
+  <text x="480" y="360" text-anchor="middle" fill="#666" font-size="9">SELECT product_id, SCORE_EXPR AS score,</text>
+  <text x="480" y="374" text-anchor="middle" fill="#666" font-size="9">       ROW_NUMBER() OVER (ORDER BY score DESC, product_id ASC) AS rank_no</text>
+  <text x="480" y="388" text-anchor="middle" fill="#666" font-size="9">FROM product_metrics → INSERT INTO mv_product_rank_weekly WHERE rank_no &lt;= 100</text>
+  <text x="480" y="402" text-anchor="middle" fill="#c0670d" font-size="8" font-weight="600">단일 트랜잭션 (TX 1)</text>
+
+  <text x="410" y="430" text-anchor="middle" fill="#c0670d" font-size="9" font-weight="600">▼ 가장 빠른 wall time · 그러나 실패 시 step 전체 재실행 + 긴 락 보유 위험</text>
+
+  <defs>
+    <marker id="a3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#1f6f9f"/>
+    </marker>
+    <marker id="a4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#c0670d"/>
+    </marker>
+  </defs>
+</svg>
