@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunkwiggleji_github_io=self.webpackChunkwiggleji_github_io||[]).push([[5982],{5982:function(e,i,t){t.d(i,{createPacketServices:function(){return u.$}});var u=t(6527);t(830)}}]);
